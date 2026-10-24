@@ -218,3 +218,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# NYC Traffic Collision Project
+.venv/
+data/raw/
+data/processed/
+.DS_Store
+__pycache__/
