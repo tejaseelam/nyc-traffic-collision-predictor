@@ -3,8 +3,8 @@ from pathlib import Path
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
-INPUT = ROOT / "data" / "raw" / "nyc_crashes_sample.csv"
-OUTPUT = ROOT / "data" / "processed" / "crashes_clean.parquet"
+INPUT = ROOT / "data" / "raw" / "nyc_crashes_full.csv"
+OUTPUT = ROOT / "data" / "processed" / "crashes_full_clean.parquet"
 
 df = pd.read_csv(INPUT, low_memory=False)
 
