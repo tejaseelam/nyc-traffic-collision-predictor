@@ -225,3 +225,6 @@ data/raw/
 data/processed/
 .DS_Store
 __pycache__/
+output/
+team*proposal.pdf
+~$*.docx

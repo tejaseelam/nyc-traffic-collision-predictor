@@ -9,16 +9,20 @@ OUTPUT = ROOT / "data" / "processed" / "crashes_full_clean.parquet"
 df = pd.read_csv(INPUT, low_memory=False)
 
 print("Original records:", len(df))
+original_records = len(df)
 
 # Standardize column names
 df.columns = df.columns.str.strip().str.lower()
 
-# Remove duplicate collisions
-df["collision_id"] = pd.to_numeric(
-    df["collision_id"], errors="coerce"
-)
-df = df.dropna(subset=["collision_id"])
+# Preserve collision identifiers as strings. NYC Open Data currently returns
+# opaque identifiers, while older exports may contain numeric identifiers.
+df["collision_id"] = df["collision_id"].astype("string").str.strip()
+missing_collision_id = df["collision_id"].isna() | df["collision_id"].eq("")
+df = df.loc[~missing_collision_id].copy()
 df = df.drop_duplicates(subset=["collision_id"])
+
+if df.empty:
+    raise ValueError("No valid collision IDs remain after cleaning")
 
 # Parse dates and times
 df["crash_date"] = pd.to_datetime(
@@ -61,7 +65,7 @@ dt = df["crash_datetime"]
 
 df["year"] = dt.dt.year
 df["month"] = dt.dt.month
-df["day_of_week"] = dt.dt.dayofweek
+df["day_of_week"] = dt.dt.day_of_week
 df["hour"] = dt.dt.hour
 df["is_weekend"] = df["day_of_week"].isin([5, 6])
 
@@ -84,6 +88,8 @@ df.to_parquet(OUTPUT, index=False)
 
 print("\nCLEANING SUMMARY")
 print("Cleaned records:", len(df))
+print("Records without collision IDs:", int(missing_collision_id.sum()))
+print("Duplicate collision IDs removed:", original_records - int(missing_collision_id.sum()) - len(df))
 print("Duplicate IDs remaining:", df["collision_id"].duplicated().sum())
 print("Valid timestamps:", df["valid_datetime"].sum())
 print("Valid locations:", df["valid_location"].sum())

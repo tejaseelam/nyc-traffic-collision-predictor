@@ -9,13 +9,36 @@ from pyproj import Transformer
 ROOT = Path(__file__).resolve().parent.parent
 
 
+def require_columns(frame, columns, label):
+    missing = sorted(set(columns) - set(frame.columns))
+    if missing:
+        raise ValueError(f"{label} is missing required columns: {', '.join(missing)}")
+
+
 def normalize(streets):
     return (streets.fillna("").astype(str).str.upper().str.strip().str.replace(r"[^A-Z0-9 ]", " ", regex=True).str.replace(r"\s+", " ", regex=True).str.strip())
 
 
 def merge_weather(crashes, weather):
-    crashes["weather_date"] = pd.to_datetime(crashes["crash_date"]).dt.normalize()
-    weather["weather_date"] = pd.to_datetime(weather["weather_date"])
+    require_columns(crashes, ["crash_date"], "Crash data")
+    require_columns(
+        weather,
+        ["weather_date", "weather_record_present", "weather_any_missing"],
+        "Weather data",
+    )
+
+    crashes = crashes.copy()
+    weather = weather.copy()
+    crashes["weather_date"] = pd.to_datetime(
+        crashes["crash_date"], errors="coerce"
+    ).dt.normalize()
+    weather["weather_date"] = pd.to_datetime(
+        weather["weather_date"], errors="coerce"
+    ).dt.normalize()
+    weather = weather.dropna(subset=["weather_date"])
+
+    if weather["weather_date"].duplicated().any():
+        raise ValueError("Weather data contains duplicate dates")
 
     crashes = crashes.merge(weather, on="weather_date", how="left", validate="many_to_one")
 
@@ -26,6 +49,24 @@ def merge_weather(crashes, weather):
 
 
 def merge_traffic(crashes, traffic, cross_street_column):
+    borough = "borough_final" if "borough_final" in crashes else "borough"
+    require_columns(
+        crashes,
+        [borough, "crash_datetime", "on_street_name", cross_street_column],
+        "Crash data",
+    )
+    require_columns(
+        traffic,
+        [
+            "segmentid", "traffic_hour", "traffic_borough", "traffic_street",
+            "traffic_from_street", "traffic_to_street",
+            "traffic_nearby_segment_volume",
+        ],
+        "Traffic data",
+    )
+
+    crashes = crashes.copy()
+    traffic = traffic.copy()
     traffic["traffic_hour"] = pd.to_datetime(traffic["traffic_hour"])
     crashes["traffic_hour"] = pd.to_datetime(crashes["crash_datetime"]).dt.floor("h")
 
@@ -45,7 +86,6 @@ def merge_traffic(crashes, traffic, cross_street_column):
     unique_roads = unique_roads[road_keys + ["segmentid"]].drop_duplicates(road_keys)
     lookup = counts.merge(unique_roads, on=road_keys, how="left")
 
-    borough = "borough_final" if "borough_final" in crashes else "borough"
     crashes["borough_key"] = normalize(crashes[borough])
     crashes["street_key"] = normalize(crashes["on_street_name"])
     crashes["cross_street_key"] = normalize(crashes[cross_street_column])
@@ -64,7 +104,22 @@ def merge_traffic(crashes, traffic, cross_street_column):
 
 
 def merge_speed(crashes, speed):
-    speed = speed.reset_index(drop=True)
+    require_columns(
+        crashes,
+        ["latitude", "longitude", "on_street_name"],
+        "Crash data",
+    )
+    require_columns(
+        speed,
+        [
+            "speed_geometry_wkb", "speed_street_normalized",
+            "speed_limit_snapshot_mph", "speed_source_row_id",
+        ],
+        "Speed-limit data",
+    )
+
+    crashes = crashes.reset_index(drop=True).copy()
+    speed = speed.reset_index(drop=True).copy()
     transformer = Transformer.from_crs("EPSG:4326", "EPSG:32618", always_xy=True)
     lines = shapely.from_wkb(speed["speed_geometry_wkb"].to_numpy())
     lines = shapely.transform(lines, lambda xy: np.column_stack(transformer.transform(xy[:, 0], xy[:, 1])))
@@ -125,21 +180,60 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=ROOT)
     parser.add_argument("--crashes", type=Path)
+    parser.add_argument("--weather", type=Path)
+    parser.add_argument("--traffic", type=Path)
+    parser.add_argument("--speed-limits", type=Path)
+    parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     data = args.root / "data/processed"
     crash_path = args.crashes or data / "crashes_geo_enriched.parquet"
-    crashes = pd.read_parquet(crash_path)
-    weather = pd.read_parquet(data / "weather_clean.parquet")
-    traffic = pd.read_parquet(data / "traffic_clean.parquet")
-    speed = pd.read_parquet(data / "speed_limits_clean.parquet")
+    weather_path = args.weather or data / "weather_clean.parquet"
+    traffic_path = args.traffic or data / "traffic_clean.parquet"
+    speed_path = args.speed_limits or data / "speed_limits_clean.parquet"
+    output = args.output or data / "crashes_weather_traffic_speed.parquet"
 
-    # originalids = crashes["collision_id"].reset_index(drop=True)
+    inputs = {
+        "crashes": crash_path,
+        "weather": weather_path,
+        "traffic": traffic_path,
+        "speed limits": speed_path,
+    }
+    missing_inputs = [
+        f"{label}: {path}"
+        for label, path in inputs.items()
+        if not path.is_file()
+    ]
+    if missing_inputs:
+        raise FileNotFoundError(
+            "Missing processed inputs. Run the cleaning scripts first:\n"
+            + "\n".join(missing_inputs)
+        )
+
+    crashes = pd.read_parquet(crash_path)
+    weather = pd.read_parquet(weather_path)
+    traffic = pd.read_parquet(traffic_path)
+    speed = pd.read_parquet(speed_path)
+
+    original_count = len(crashes)
+    original_ids = None
+    if "collision_id" in crashes:
+        original_ids = crashes["collision_id"].reset_index(drop=True).copy()
 
     crashes = merge_weather(crashes, weather)
-    crashes = merge_traffic(crashes, traffic, "off_street_name")
+    crashes = merge_traffic(crashes, traffic, "cross_street_name")
     crashes = merge_speed(crashes, speed)
 
-    output = data / "crashes_weather_traffic_speed.parquet"
+    if len(crashes) != original_count:
+        raise RuntimeError(
+            "Integration changed the crash row count "
+            f"from {original_count:,} to {len(crashes):,}"
+        )
+    if original_ids is not None:
+        integrated_ids = crashes["collision_id"].reset_index(drop=True)
+        if not integrated_ids.equals(original_ids):
+            raise RuntimeError("Integration changed the collision IDs or their order")
+
+    output.parent.mkdir(parents=True, exist_ok=True)
     crashes.to_parquet(output, index=False)
     print(f"Saved {len(crashes):,} crashes to {output}")
     print(f"Weather matches: {crashes['weather_matched'].sum():,}")
