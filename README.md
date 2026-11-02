@@ -25,3 +25,23 @@ This creates:
 - `data/processed/model_panel_v1_summary.json`: validation totals and the settings used for the build.
 
 The panel covers January 2021 through December 2024. It includes calendar, daily weather, borough, land coverage, and area-level speed-limit information. Traffic is intentionally excluded from version 1 until typical traffic profiles replace the sparse exact-hour matches.
+
+## Create the train validation and test files
+
+After building the model panel, run:
+
+```bash
+python scripts/7split_model_panel.py
+```
+
+This creates three chronological files for the modeling handoff:
+
+- `model_panel_train_2021_2022.parquet`: use to fit models.
+- `model_panel_validation_2023.parquet`: use to compare features, models, and settings.
+- `model_panel_test_2024.parquet`: use once for the final evaluation after all modeling decisions are complete.
+
+The script keeps all grid cells from a six-hour period in the same split and validates that the files preserve the original row and crash totals. Its checks are saved in `model_panel_split_summary.json`.
+
+Use the training file to fit candidate models and the validation file to make every modeling decision. After selecting the final approach, retrain it with the combined training and validation data, then evaluate it once on the 2024 test file. Do not use the test file to choose features, models, settings, or a decision threshold.
+
+See `MODELING_HANDOFF.md` for the verified split totals, target columns, recommended modeling workflow, and known limitations.
