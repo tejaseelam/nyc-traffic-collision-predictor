@@ -23,6 +23,7 @@ import json
 import joblib
 import numpy as np
 import pandas as pd
+from pandas.api.types import union_categoricals
 from scipy.special import expit
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
@@ -104,7 +105,11 @@ def prepare_panel(frame, label):
     panel = frame[PANEL_COLUMNS].copy()
     panel["time_bin"] = pd.to_datetime(panel["time_bin"])
     panel[TARGET] = panel[TARGET].astype(bool)
-    panel["borough"] = panel["borough"].astype("string").fillna("UNKNOWN").astype(str)
+    # Categories keep millions of repeated strings from dominating memory.
+    panel["cell_id"] = panel["cell_id"].astype("category")
+    panel["borough"] = (
+        panel["borough"].astype("string").fillna("UNKNOWN").astype("category")
+    )
     for column in ["hour", "day_of_week", "month"]:
         panel[column] = panel[column].astype(np.int16)
     for column in [
@@ -135,7 +140,10 @@ def prepare_panel(frame, label):
 def load_split(path, label):
     if not path.is_file():
         raise FileNotFoundError(f"{label} file not found: {path}")
-    return prepare_panel(pd.read_parquet(path, columns=PANEL_COLUMNS), label)
+    frame = pd.read_parquet(
+        path, columns=PANEL_COLUMNS, read_dictionary=["cell_id", "borough"]
+    )
+    return prepare_panel(frame, label)
 
 
 def logit(rate):
@@ -180,14 +188,17 @@ def add_history_features(frames, prior_strength, recent_window_days):
     The frames are combined so later splits can use history from earlier ones.
     Every feature for period t is computed only from periods before t.
     """
-    combined = pd.concat(
-        [frame[["cell_id", "time_bin", TARGET]] for frame in frames],
-        ignore_index=True,
+    time_index, times = pd.factorize(
+        pd.concat([frame["time_bin"] for frame in frames], ignore_index=True),
+        sort=True,
     )
-    times = np.sort(combined["time_bin"].unique())
-    cells = np.sort(combined["cell_id"].unique())
-    time_index = np.searchsorted(times, combined["time_bin"].to_numpy())
-    cell_index = np.searchsorted(cells, combined["cell_id"].to_numpy())
+    cell_index, cells = pd.factorize(
+        union_categoricals([frame["cell_id"].astype("category") for frame in frames])
+    )
+    outcome_values = np.concatenate(
+        [frame[TARGET].to_numpy(dtype=np.float32) for frame in frames]
+    )
+    times = times.to_numpy()
 
     filled = np.zeros((len(times), len(cells)), dtype=np.int32)
     np.add.at(filled, (time_index, cell_index), 1)
@@ -199,7 +210,7 @@ def add_history_features(frames, prior_strength, recent_window_days):
         )
 
     outcomes = np.zeros(filled.shape, dtype=np.float32)
-    outcomes[time_index, cell_index] = combined[TARGET].to_numpy(dtype=np.float32)
+    outcomes[time_index, cell_index] = outcome_values
 
     period_length = pd.Series(times).diff().min()
     if len(times) < 2 or pd.Timedelta(days=1) % period_length != pd.Timedelta(0):
@@ -224,7 +235,7 @@ def add_history_features(frames, prior_strength, recent_window_days):
     start = 0
     for frame in frames:
         stop = start + len(frame)
-        frame = frame.copy()
+        frame = frame.copy(deep=False)
         for name, values in features.items():
             frame[name] = values[start:stop].astype(np.float32)
         results.append(frame)
