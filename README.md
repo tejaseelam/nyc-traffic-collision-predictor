@@ -62,3 +62,13 @@ This reads only the training and validation files and compares, on 2023:
 Crash-history features for a period use only earlier periods. Zero-crash rows are subsampled for fitting (`--negative-sample-rate`) and the predicted probabilities are corrected back to the full-data rate.
 
 Outputs: `reports/baseline_logreg/validation_metrics.json`, `reports/baseline_logreg/coefficients.csv`, and the fitted model in `data/processed/models/logreg_has_crash.joblib`. The 2024 test file is not used.
+
+## Plot the validation results
+
+After running the logistic regression script, run:
+
+```bash
+python scripts/9plot_logreg_results.py
+```
+
+This saves report figures in `reports/baseline_logreg/figures/`: a crash capture curve, precision-recall curves, a calibration plot, the largest coefficients, and a predicted vs observed map. The map needs `data/processed/nyc_grid_500m.parquet` from the panel build and is skipped when that file is missing.

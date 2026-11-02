@@ -42,6 +42,7 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 ROOT = Path(__file__).resolve().parents[1]
 TRAIN_FILE = "model_panel_train_2021_2022.parquet"
 VALIDATION_FILE = "model_panel_validation_2023.parquet"
+PREDICTIONS_FILE = "validation_2023_predictions.parquet"
 TARGET = "has_crash"
 
 PANEL_COLUMNS = [
@@ -294,7 +295,9 @@ def build_model(c_value):
     preprocess = ColumnTransformer([
         (
             "categorical",
-            OneHotEncoder(handle_unknown="ignore"),
+            # Dropping the first level makes each coefficient a comparison
+            # with a reference category (hour 0, Monday, January, Bronx).
+            OneHotEncoder(drop="first", handle_unknown="ignore"),
             CATEGORICAL_FEATURES,
         ),
         (
@@ -346,17 +349,23 @@ def fit_and_evaluate(
     seed=42,
     top_fraction=0.05,
 ):
-    """Compare baselines and logistic models on validation and return the best."""
+    """Compare baselines and logistic models on validation.
+
+    Returns the metrics, the best logistic model, and validation predictions
+    from both baselines and that model.
+    """
     train, validation = add_history_features(
         [train, validation], prior_strength, recent_window_days
     )
     y_validation = validation[TARGET].to_numpy()
+    predictions = validation[["cell_id", "time_bin", TARGET]].copy()
 
     results = {"baselines": {}, "logistic": {}}
     print("Evaluating historical-average baselines...")
     for name, keys in [("cell_rate", ["cell_id"]), ("cell_hour_rate", ["cell_id", "hour"])]:
         probability = training_rate(train, validation, keys, prior_strength)
         results["baselines"][name] = evaluate(y_validation, probability, top_fraction)
+        predictions[name] = probability.astype(np.float32)
 
     burn_in_end = train["time_bin"].min() + pd.Timedelta(days=burn_in_days)
     eligible = train.loc[train["time_bin"] >= burn_in_end]
@@ -382,6 +391,7 @@ def fit_and_evaluate(
         if best_name is None or score > results["logistic"][best_name]["average_precision"]:
             best_name = name
             best_model = model
+            predictions["logistic"] = probability.astype(np.float32)
 
     results["selected_logistic"] = best_name
     results["selection_metric"] = "validation average_precision"
@@ -396,7 +406,7 @@ def fit_and_evaluate(
         "fitted_rows": int(len(fit_frame)),
         "features": FEATURES,
     }
-    return results, best_model
+    return results, best_model, predictions
 
 
 def main():
@@ -424,7 +434,7 @@ def main():
     train = load_split(processed / TRAIN_FILE, "Training file")
     validation = load_split(processed / VALIDATION_FILE, "Validation file")
 
-    results, model = fit_and_evaluate(
+    results, model, predictions = fit_and_evaluate(
         train,
         validation,
         c_values=c_values,
@@ -441,6 +451,9 @@ def main():
         json.dumps(results, indent=2) + "\n"
     )
     coefficient_table(model).to_csv(output_directory / "coefficients.csv", index=False)
+    predictions_path = processed / "predictions" / PREDICTIONS_FILE
+    predictions_path.parent.mkdir(parents=True, exist_ok=True)
+    predictions.to_parquet(predictions_path, index=False)
     model_path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(
         {
@@ -464,6 +477,7 @@ def main():
     print(f"Selected logistic model: {results['selected_logistic']}")
     print(f"Metrics: {output_directory / 'validation_metrics.json'}")
     print(f"Coefficients: {output_directory / 'coefficients.csv'}")
+    print(f"Validation predictions: {predictions_path}")
     print(f"Model: {model_path}")
 
 

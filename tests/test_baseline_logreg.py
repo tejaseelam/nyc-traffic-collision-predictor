@@ -106,7 +106,7 @@ class ModelTests(unittest.TestCase):
         cls.validation = LOGREG.prepare_panel(
             make_panel("2021-07-01", "2021-10-01", seed=1), "validation"
         )
-        cls.results, cls.model = LOGREG.fit_and_evaluate(
+        cls.results, cls.model, cls.predictions = LOGREG.fit_and_evaluate(
             cls.train,
             cls.validation,
             c_values=(0.1, 1.0),
