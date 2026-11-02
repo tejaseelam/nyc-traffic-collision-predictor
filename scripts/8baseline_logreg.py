@@ -7,6 +7,7 @@ Models compared on the validation file:
 
 * cell_rate:       each cell's crash rate over the training years
 * cell_hour_rate:  each cell's crash rate for the same six-hour slot
+* *_rolling:       the same two rates, updated with every earlier period
 * logistic C=...:  logistic regression on calendar, weather, land, speed-limit,
                    and past-only crash-history features
 
@@ -364,6 +365,16 @@ def fit_and_evaluate(
     print("Evaluating historical-average baselines...")
     for name, keys in [("cell_rate", ["cell_id"]), ("cell_hour_rate", ["cell_id", "hour"])]:
         probability = training_rate(train, validation, keys, prior_strength)
+        results["baselines"][name] = evaluate(y_validation, probability, top_fraction)
+        predictions[name] = probability.astype(np.float32)
+
+    # The same rates updated through each earlier period, so the baselines get
+    # the same fresh history as the logistic model.
+    for name, column in [
+        ("cell_rate_rolling", "history_cell_logit"),
+        ("cell_hour_rate_rolling", "history_cell_hour_logit"),
+    ]:
+        probability = expit(validation[column].to_numpy(dtype=np.float64))
         results["baselines"][name] = evaluate(y_validation, probability, top_fraction)
         predictions[name] = probability.astype(np.float32)
 

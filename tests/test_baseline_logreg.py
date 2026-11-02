@@ -133,6 +133,12 @@ class ModelTests(unittest.TestCase):
             self.assertGreater(metrics["roc_auc"], 0.7)
             self.assertGreater(metrics["average_precision"], metrics["positive_rate"])
 
+    def test_reports_rolling_baselines_and_their_predictions(self):
+        for name in ["cell_rate_rolling", "cell_hour_rate_rolling"]:
+            self.assertIn(name, self.results["baselines"])
+            self.assertIn(name, self.predictions)
+        self.assertTrue(self.predictions["cell_hour_rate_rolling"].between(0, 1).all())
+
     def test_negative_sampling_correction_keeps_probabilities_calibrated(self):
         selected = self.results["logistic"][self.results["selected_logistic"]]
         self.assertAlmostEqual(

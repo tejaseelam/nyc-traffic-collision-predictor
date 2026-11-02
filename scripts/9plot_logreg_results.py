@@ -34,8 +34,9 @@ METRIC_CRS = "EPSG:32618"
 # Fixed slot order: the logistic model always takes the first color.
 MODELS = [
     ("logistic", "Logistic regression", "#2a78d6"),
-    ("cell_hour_rate", "Cell + time-of-day rate", "#eb6834"),
-    ("cell_rate", "Cell rate", "#1baf7a"),
+    ("cell_hour_rate_rolling", "Cell + time-of-day rate, updated", "#eb6834"),
+    ("cell_hour_rate", "Cell + time-of-day rate, 2021-22", "#1baf7a"),
+    ("cell_rate", "Cell rate, 2021-22", "#eda100"),
 ]
 SURFACE = "#fcfcfb"
 INK = "#0b0b0b"
@@ -125,7 +126,7 @@ def plot_capture(predictions, path, max_fraction=0.2):
         "Share of 2023 crashes caught by flagging the riskiest areas",
         "Each row is one 500 m cell in one six-hour period; dots mark the top 5%",
     )
-    axes.legend(frameon=False, fontsize=9, labelcolor=INK_SECONDARY, loc="lower right")
+    axes.legend(frameon=False, fontsize=9, labelcolor=INK_SECONDARY, loc="upper left")
     return save(figure, path)
 
 

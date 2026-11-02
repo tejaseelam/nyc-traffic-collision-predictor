@@ -26,6 +26,7 @@ def make_predictions(cell_count=16, period_count=200, seed=0):
         "has_crash": random.random(len(risk)) < risk,
         "cell_rate": risk + random.normal(0, 0.02, len(risk)).clip(-0.009),
         "cell_hour_rate": risk,
+        "cell_hour_rate_rolling": risk,
         "logistic": risk,
     })
 
