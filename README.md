@@ -45,3 +45,20 @@ The script keeps all grid cells from a six-hour period in the same split and val
 Use the training file to fit candidate models and the validation file to make every modeling decision. After selecting the final approach, retrain it with the combined training and validation data, then evaluate it once on the 2024 test file. Do not use the test file to choose features, models, settings, or a decision threshold.
 
 See `MODELING_HANDOFF.md` for the verified split totals, target columns, recommended modeling workflow, and known limitations.
+
+## Baseline and logistic regression for `has_crash`
+
+After creating the splits, run:
+
+```bash
+python scripts/8baseline_logreg.py
+```
+
+This reads only the training and validation files and compares, on 2023:
+
+- `cell_rate` and `cell_hour_rate`: historical crash rates per cell (and per cell and six-hour slot) from 2021-2022.
+- Logistic regression with calendar, weather, land, speed-limit, and past-only crash-history features, for each value in `--c-values`. The best model is selected by validation average precision.
+
+Crash-history features for a period use only earlier periods. Zero-crash rows are subsampled for fitting (`--negative-sample-rate`) and the predicted probabilities are corrected back to the full-data rate.
+
+Outputs: `reports/baseline_logreg/validation_metrics.json`, `reports/baseline_logreg/coefficients.csv`, and the fitted model in `data/processed/models/logreg_has_crash.joblib`. The 2024 test file is not used.
