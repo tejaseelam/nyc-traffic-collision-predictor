@@ -99,6 +99,21 @@ class HistoryFeatureTests(unittest.TestCase):
             LOGREG.add_history_features([panel.iloc[1:]], 5, 1)
 
 
+class EvaluationTests(unittest.TestCase):
+    def test_confusion_matrix_flags_the_top_fraction(self):
+        y_true = np.array([True, False, True, False, False, False, False, False, False, True])
+        probability = np.array([0.9, 0.8, 0.7, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.2])
+        confusion = LOGREG.evaluate(y_true, probability, top_fraction=0.3)[
+            "confusion_at_top_fraction"
+        ]
+        self.assertEqual(confusion, {
+            "true_positives": 2,
+            "false_positives": 1,
+            "false_negatives": 1,
+            "true_negatives": 6,
+        })
+
+
 class ModelTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

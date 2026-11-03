@@ -273,6 +273,7 @@ def evaluate(y_true, probability, top_fraction=0.05):
     top_count = max(1, int(round(top_fraction * len(probability))))
     top_rows = np.argsort(-probability, kind="stable")[:top_count]
     top_hits = int(y_true[top_rows].sum())
+    positives = int(y_true.sum())
 
     return {
         "rows": int(len(y_true)),
@@ -284,7 +285,14 @@ def evaluate(y_true, probability, top_fraction=0.05):
         "brier_score": float(brier_score_loss(y_true, probability)),
         "top_fraction": top_fraction,
         "precision_at_top_fraction": top_hits / top_count,
-        "recall_at_top_fraction": top_hits / max(int(y_true.sum()), 1),
+        "recall_at_top_fraction": top_hits / max(positives, 1),
+        # Flagging the riskiest top_fraction of rows as "crash expected".
+        "confusion_at_top_fraction": {
+            "true_positives": top_hits,
+            "false_positives": top_count - top_hits,
+            "false_negatives": positives - top_hits,
+            "true_negatives": len(y_true) - top_count - (positives - top_hits),
+        },
         "best_f1": float(f1[best]),
         "best_f1_threshold": float(thresholds[best]),
         "precision_at_best_f1": float(precision[best]),
