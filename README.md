@@ -72,3 +72,21 @@ python scripts/9plot_logreg_results.py
 ```
 
 This saves report figures in `reports/baseline_logreg/figures/`: a crash capture curve, precision-recall curves, a calibration plot, the largest coefficients, and a predicted vs observed map. The map needs `data/processed/nyc_grid_500m.parquet` from the panel build and is skipped when that file is missing.
+
+## Tree-based comparison model for `has_crash`
+
+After creating the splits, run:
+
+```bash
+python scripts/10tree_model.py
+python scripts/11plot_tree_results.py
+```
+
+This fits gradient-boosted trees (scikit-learn `HistGradientBoostingClassifier`) with the same setup as the logistic regression: the same training and validation files, past-only crash-history features, burn-in, negative subsampling with probability correction, evaluation measurements, and selection by validation average precision. Two feature sets are compared:
+
+- `core`: exactly the logistic regression's features, for a like-for-like comparison.
+- `core_plus_location`: the core features plus each cell's grid position, which a tree can split into neighborhoods.
+
+Feature importance is the drop in validation average precision when a feature, or a group of related features, is shuffled. Run `scripts/8baseline_logreg.py` first to include the logistic regression in the importance analysis, the comparison table, and the figures.
+
+Outputs: `reports/tree_model/validation_metrics.json` (results, settings, and runtime for every candidate), `reports/tree_model/model_comparison.csv`, `reports/tree_model/feature_importance.csv`, figures in `reports/tree_model/figures/`, and the fitted models in `data/processed/models/tree_has_crash.joblib`. The 2024 test file is not used.
