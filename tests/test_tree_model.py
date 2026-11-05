@@ -25,8 +25,8 @@ TREE = load_module("tree_model", SCRIPT)
 LOGREG_TESTS = load_module("test_baseline_logreg", ROOT / "tests" / "test_baseline_logreg.py")
 
 FAST_CANDIDATES = {
-    "small": {"learning_rate": 0.1, "max_leaf_nodes": 7, "min_samples_leaf": 20},
-    "smaller": {"learning_rate": 0.1, "max_leaf_nodes": 3, "min_samples_leaf": 50},
+    "small": {"learning_rate": 0.1, "num_leaves": 7, "min_child_samples": 20},
+    "smaller": {"learning_rate": 0.1, "num_leaves": 3, "min_child_samples": 50},
 }
 
 
@@ -137,7 +137,7 @@ class ModelTests(unittest.TestCase):
     def test_records_settings_and_runtime_for_every_candidate(self):
         for candidates in self.results["tree"].values():
             for metrics in candidates.values():
-                self.assertIn("max_leaf_nodes", metrics["settings"])
+                self.assertIn("num_leaves", metrics["settings"])
                 self.assertGreaterEqual(metrics["fit_seconds"], 0)
                 self.assertGreater(metrics["iterations"], 0)
 

@@ -75,14 +75,14 @@ This saves report figures in `reports/baseline_logreg/figures/`: a crash capture
 
 ## Tree-based comparison model for `has_crash`
 
-After creating the splits, run:
+The tree model uses LightGBM, which needs OpenMP. On macOS, install it first with `brew install libomp`. Then, after creating the splits, run:
 
 ```bash
 python scripts/10tree_model.py
 python scripts/11plot_tree_results.py
 ```
 
-This fits gradient-boosted trees (scikit-learn `HistGradientBoostingClassifier`) with the same setup as the logistic regression: the same training and validation files, past-only crash-history features, burn-in, negative subsampling with probability correction, evaluation measurements, and selection by validation average precision. Two feature sets are compared:
+This fits gradient-boosted trees (LightGBM `LGBMClassifier`) with the same setup as the logistic regression: the same training and validation files, past-only crash-history features, burn-in, negative subsampling with probability correction, evaluation measurements, and selection by validation average precision. Early stopping uses a random tenth of the sampled training rows, never the 2023 file. Two feature sets are compared:
 
 - `core`: exactly the logistic regression's features, for a like-for-like comparison.
 - `core_plus_location`: the core features plus each cell's grid position, which a tree can split into neighborhoods.
@@ -91,16 +91,17 @@ Feature importance is the drop in validation average precision when a feature, o
 
 Outputs: `reports/tree_model/validation_metrics.json` (results, settings, and runtime for every candidate), `reports/tree_model/model_comparison.csv`, `reports/tree_model/feature_importance.csv`, figures in `reports/tree_model/figures/`, and the fitted models in `data/processed/models/tree_has_crash.joblib`. The 2024 test file is not used.
 
-## LightGBM and XGBoost comparison for `has_crash`
+### Why LightGBM
 
-LightGBM and XGBoost need OpenMP. On macOS, install it first with `brew install libomp`. Then, after running the tree-based comparison model, run:
+LightGBM was compared with scikit-learn's `HistGradientBoostingClassifier` and XGBoost under the same setup and tree sizes (commit `4413130`, which has the comparison script). Best 2023 validation results for each library:
 
-```bash
-python scripts/12boosting_libraries.py
-```
+| Library | Feature set | Average precision | Recall in top 5% | Fit time |
+|---|---|---|---|---|
+| scikit-learn | `core` | 0.0606 | 0.232 | 5s |
+| LightGBM | `core` | 0.0606 | 0.232 | 3s |
+| XGBoost | `core` | 0.0606 | 0.232 | 13s |
+| scikit-learn | `core_plus_location` | 0.0608 | 0.234 | 13s |
+| LightGBM | `core_plus_location` | 0.0608 | 0.233 | 10s |
+| XGBoost | `core_plus_location` | 0.0607 | 0.233 | 25s |
 
-This fits the same gradient-boosted tree comparison with two other libraries, LightGBM and XGBoost, using the same setup, feature sets, and tree sizes as `scripts/10tree_model.py`. LightGBM grows each tree one leaf at a time, like scikit-learn, so its settings carry over directly. XGBoost grows each tree one level at a time, so each size uses the depth that allows about the same number of leaves. Early stopping uses a random tenth of the sampled training rows, never the 2023 file.
-
-The comparison table includes the baselines, the logistic regression, and the scikit-learn trees when their scripts have been run.
-
-Outputs: `reports/boosting_libraries/validation_metrics.json` (results, settings, tree counts, and fit times for every candidate), `reports/boosting_libraries/model_comparison.csv`, validation predictions in `data/processed/predictions/validation_2023_boosting_predictions.parquet`, and the fitted models in `data/processed/models/boosting_has_crash.joblib`. The 2024 test file is not used.
+All three are within 0.0002 average precision, so the choice of library does not change accuracy. LightGBM was the fastest to fit.

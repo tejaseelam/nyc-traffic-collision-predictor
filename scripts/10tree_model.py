@@ -1,4 +1,4 @@
-"""Fit a gradient-boosted tree model for has_crash and analyze its features.
+"""Fit a gradient-boosted tree model (LightGBM) for has_crash and analyze its features.
 
 Only the training (2021-2022) and validation (2023) files are read. The 2024
 test file is intentionally never opened here.
@@ -20,6 +20,13 @@ Feature importance is measured by permutation on a sample of validation rows:
 the drop in average precision when one feature, or one group of related
 features, is shuffled. When the saved logistic regression is available, the
 same measurement is made for it so the two models can be compared.
+
+LightGBM was chosen after comparing it with scikit-learn's
+HistGradientBoostingClassifier and XGBoost under this same setup (commit
+4413130): all three scored within 0.0002 validation average precision, and
+LightGBM fit fastest.
+
+On macOS LightGBM needs OpenMP: brew install libomp
 """
 
 from pathlib import Path
@@ -31,11 +38,13 @@ import platform
 import time
 
 import joblib
+import lightgbm
 import numpy as np
 import pandas as pd
+from scipy.special import expit
 import sklearn
-from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.metrics import average_precision_score
+from sklearn.model_selection import train_test_split
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -84,16 +93,18 @@ FEATURE_GROUPS = {
 # Settings shared by every candidate. Early stopping holds out a random tenth
 # of the sampled training rows, so the 2023 file is never used while fitting.
 COMMON_SETTINGS = {
-    "max_iter": 1000,
-    "l2_regularization": 1.0,
-    "early_stopping": True,
-    "validation_fraction": 0.1,
-    "n_iter_no_change": 30,
+    "n_estimators": 1000,
+    "reg_lambda": 1.0,
+    "verbose": -1,
 }
+EARLY_STOPPING_ROUNDS = 30
+EARLY_STOPPING_FRACTION = 0.1
+# A sweep of 4 to 511 leaves per tree (with 200 or 1000 rows per leaf) found
+# validation average precision flat from 4 to 127 leaves, within the change
+# from a different random seed, and lower from 255 leaves up. 31 leaves sits
+# in the flat range without needing the iteration cap like the smallest trees.
 CANDIDATES = {
-    "shallow": {"learning_rate": 0.1, "max_leaf_nodes": 31, "min_samples_leaf": 200},
-    "medium": {"learning_rate": 0.05, "max_leaf_nodes": 63, "min_samples_leaf": 500},
-    "deep": {"learning_rate": 0.05, "max_leaf_nodes": 127, "min_samples_leaf": 1000},
+    "shallow": {"learning_rate": 0.1, "num_leaves": 31, "min_child_samples": 200},
 }
 
 
@@ -145,20 +156,47 @@ def sampled_training_rows(train, negative_rate, burn_in_days, seed):
     return eligible, eligible.iloc[rows]
 
 
-def build_model(settings, seed):
-    return HistGradientBoostingClassifier(
-        **COMMON_SETTINGS,
-        **settings,
-        categorical_features="from_dtype",
+def early_stopping_split(sampled, seed):
+    """Hold out a random tenth of the sampled rows to decide when to stop adding trees."""
+    fit_rows, stop_rows = train_test_split(
+        np.arange(len(sampled)),
+        test_size=EARLY_STOPPING_FRACTION,
+        stratify=sampled[TARGET].to_numpy(),
         random_state=seed,
     )
+    return sampled.iloc[fit_rows], sampled.iloc[stop_rows]
+
+
+def build_model(settings, seed):
+    # Calendar fields and borough are pandas categories (see model_inputs),
+    # which LightGBM splits on as groups instead of as ordered numbers.
+    return lightgbm.LGBMClassifier(**COMMON_SETTINGS, **settings, random_state=seed)
+
+
+def fit_model(model, fit_inputs, y_fit, stop_inputs, y_stop):
+    """Fit with early stopping and return the number of trees kept."""
+    model.fit(
+        fit_inputs,
+        y_fit,
+        eval_set=[(stop_inputs, y_stop)],
+        eval_metric="binary_logloss",
+        callbacks=[lightgbm.early_stopping(EARLY_STOPPING_ROUNDS, verbose=False)],
+    )
+    return int(model.best_iteration_)
+
+
+def corrected_probability(model, inputs, negative_rate):
+    """Undo the log-odds shift caused by subsampling negatives.
+
+    Same correction as LOGREG.corrected_probability, which needs a
+    decision_function that LightGBM does not have.
+    """
+    return expit(model.predict(inputs, raw_score=True) + np.log(negative_rate))
 
 
 def tree_scorer(model, features, levels, negative_rate):
     def score(frame):
-        return LOGREG.corrected_probability(
-            model, model_inputs(frame, features, levels), negative_rate
-        )
+        return corrected_probability(model, model_inputs(frame, features, levels), negative_rate)
     return score
 
 
@@ -245,11 +283,13 @@ def fit_and_evaluate(
     y_validation = validation[TARGET].to_numpy()
     levels = category_levels(train)
 
-    eligible, fit_frame = sampled_training_rows(train, negative_rate, burn_in_days, seed)
+    eligible, sampled = sampled_training_rows(train, negative_rate, burn_in_days, seed)
+    fit_frame, stop_frame = early_stopping_split(sampled, seed)
     y_fit = fit_frame[TARGET].to_numpy()
+    y_stop = stop_frame[TARGET].to_numpy()
     print(
-        f"Fitting on {len(fit_frame):,} sampled rows "
-        f"({int(y_fit.sum()):,} with crashes)"
+        f"Fitting on {len(fit_frame):,} sampled rows ({int(y_fit.sum()):,} with crashes), "
+        f"early stopping on {len(stop_frame):,}"
     )
 
     results = {"tree": {}, "selected": {}}
@@ -257,6 +297,7 @@ def fit_and_evaluate(
     predictions = validation[["cell_id", "time_bin", TARGET]].copy()
     for set_name, features in feature_sets.items():
         fit_inputs = model_inputs(fit_frame, features, levels)
+        stop_inputs = model_inputs(stop_frame, features, levels)
         validation_inputs = model_inputs(validation, features, levels)
         results["tree"][set_name] = {}
         best_name = None
@@ -264,23 +305,23 @@ def fit_and_evaluate(
             print(f"Fitting tree {set_name}/{name}...")
             model = build_model(settings, seed)
             start = time.perf_counter()
-            model.fit(fit_inputs, y_fit)
+            trees = fit_model(model, fit_inputs, y_fit, stop_inputs, y_stop)
             fit_seconds = time.perf_counter() - start
             start = time.perf_counter()
-            probability = LOGREG.corrected_probability(model, validation_inputs, negative_rate)
+            probability = corrected_probability(model, validation_inputs, negative_rate)
             predict_seconds = time.perf_counter() - start
 
             metrics = LOGREG.evaluate(y_validation, probability, top_fraction)
             metrics.update({
                 "settings": {**COMMON_SETTINGS, **settings},
-                "iterations": int(model.n_iter_),
+                "iterations": trees,
                 "fit_seconds": round(fit_seconds, 1),
                 "predict_seconds": round(predict_seconds, 1),
             })
             results["tree"][set_name][name] = metrics
             print(
                 f"  AP={metrics['average_precision']:.4f} "
-                f"iterations={model.n_iter_} fit={fit_seconds:.0f}s"
+                f"trees={trees} fit={fit_seconds:.0f}s"
             )
             best = results["tree"][set_name].get(best_name)
             if best is None or metrics["average_precision"] > best["average_precision"]:
@@ -291,8 +332,10 @@ def fit_and_evaluate(
 
     results["selection_metric"] = "validation average_precision"
     results["settings"] = {
-        "model": "sklearn HistGradientBoostingClassifier",
+        "model": "lightgbm LGBMClassifier",
         "candidates": {name: {**COMMON_SETTINGS, **settings} for name, settings in candidates.items()},
+        "early_stopping_rounds": EARLY_STOPPING_ROUNDS,
+        "early_stopping_fraction": EARLY_STOPPING_FRACTION,
         "feature_sets": feature_sets,
         "negative_sample_rate": negative_rate,
         "burn_in_days": burn_in_days,
@@ -301,6 +344,7 @@ def fit_and_evaluate(
         "seed": seed,
         "training_rows_after_burn_in": int(len(eligible)),
         "fitted_rows": int(len(fit_frame)),
+        "early_stopping_rows": int(len(stop_frame)),
     }
     return results, models, levels, validation, predictions
 
@@ -407,6 +451,7 @@ def main():
         "cpu_count": os.cpu_count(),
         "platform": platform.platform(),
         "python": platform.python_version(),
+        "lightgbm": lightgbm.__version__,
         "scikit_learn": sklearn.__version__,
     }
 
