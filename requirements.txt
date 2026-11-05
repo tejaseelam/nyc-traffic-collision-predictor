@@ -7,3 +7,5 @@ requests>=2.31
 shapely>=2.0
 scikit-learn>=1.4
 matplotlib>=3.8
+lightgbm>=4.0
+xgboost>=2.0

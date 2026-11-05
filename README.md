@@ -90,3 +90,17 @@ This fits gradient-boosted trees (scikit-learn `HistGradientBoostingClassifier`)
 Feature importance is the drop in validation average precision when a feature, or a group of related features, is shuffled. Run `scripts/8baseline_logreg.py` first to include the logistic regression in the importance analysis, the comparison table, and the figures.
 
 Outputs: `reports/tree_model/validation_metrics.json` (results, settings, and runtime for every candidate), `reports/tree_model/model_comparison.csv`, `reports/tree_model/feature_importance.csv`, figures in `reports/tree_model/figures/`, and the fitted models in `data/processed/models/tree_has_crash.joblib`. The 2024 test file is not used.
+
+## LightGBM and XGBoost comparison for `has_crash`
+
+LightGBM and XGBoost need OpenMP. On macOS, install it first with `brew install libomp`. Then, after running the tree-based comparison model, run:
+
+```bash
+python scripts/12boosting_libraries.py
+```
+
+This fits the same gradient-boosted tree comparison with two other libraries, LightGBM and XGBoost, using the same setup, feature sets, and tree sizes as `scripts/10tree_model.py`. LightGBM grows each tree one leaf at a time, like scikit-learn, so its settings carry over directly. XGBoost grows each tree one level at a time, so each size uses the depth that allows about the same number of leaves. Early stopping uses a random tenth of the sampled training rows, never the 2023 file.
+
+The comparison table includes the baselines, the logistic regression, and the scikit-learn trees when their scripts have been run.
+
+Outputs: `reports/boosting_libraries/validation_metrics.json` (results, settings, tree counts, and fit times for every candidate), `reports/boosting_libraries/model_comparison.csv`, validation predictions in `data/processed/predictions/validation_2023_boosting_predictions.parquet`, and the fitted models in `data/processed/models/boosting_has_crash.joblib`. The 2024 test file is not used.

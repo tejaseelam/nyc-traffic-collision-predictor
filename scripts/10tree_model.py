@@ -135,6 +135,16 @@ def model_inputs(frame, features, levels):
     return inputs
 
 
+def sampled_training_rows(train, negative_rate, burn_in_days, seed):
+    """Training rows after the burn-in, and those rows with zero-crash rows subsampled."""
+    burn_in_end = train["time_bin"].min() + pd.Timedelta(days=burn_in_days)
+    eligible = train.loc[train["time_bin"] >= burn_in_end]
+    if eligible.empty:
+        raise ValueError("No training rows remain after the burn-in period")
+    rows = LOGREG.sample_training_rows(eligible[TARGET].to_numpy(), negative_rate, seed)
+    return eligible, eligible.iloc[rows]
+
+
 def build_model(settings, seed):
     return HistGradientBoostingClassifier(
         **COMMON_SETTINGS,
@@ -235,12 +245,7 @@ def fit_and_evaluate(
     y_validation = validation[TARGET].to_numpy()
     levels = category_levels(train)
 
-    burn_in_end = train["time_bin"].min() + pd.Timedelta(days=burn_in_days)
-    eligible = train.loc[train["time_bin"] >= burn_in_end]
-    if eligible.empty:
-        raise ValueError("No training rows remain after the burn-in period")
-    rows = LOGREG.sample_training_rows(eligible[TARGET].to_numpy(), negative_rate, seed)
-    fit_frame = eligible.iloc[rows]
+    eligible, fit_frame = sampled_training_rows(train, negative_rate, burn_in_days, seed)
     y_fit = fit_frame[TARGET].to_numpy()
     print(
         f"Fitting on {len(fit_frame):,} sampled rows "
@@ -321,7 +326,7 @@ def comparison_table(results, logreg_metrics):
         "recall_at_top_fraction",
         "best_f1",
     ]
-    return pd.DataFrame(rows)[columns]
+    return pd.DataFrame(rows).reindex(columns=columns)
 
 
 def main():
