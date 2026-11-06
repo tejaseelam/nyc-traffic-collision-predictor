@@ -57,15 +57,16 @@ python scripts/8baseline_logreg.py
 This reads only the training and validation files and compares, on 2023:
 
 - `cell_rate` and `cell_hour_rate`: historical crash rates per cell (and per cell and six-hour slot) from 2021-2022.
+- `cell_rate_rolling` and `cell_hour_rate_rolling`: the same rates updated with every earlier period, so they use the same history as the logistic regression. `cell_hour_rate_rolling` is the baseline every model should beat.
 - Logistic regression with calendar, weather, land, speed-limit, and past-only crash-history features, for each value in `--c-values`. The best model is selected by validation average precision.
 
 Crash-history features for a period use only earlier periods. Zero-crash rows are subsampled for fitting (`--negative-sample-rate`) and the predicted probabilities are corrected back to the full-data rate.
 
-Outputs: `reports/baseline_logreg/validation_metrics.json`, `reports/baseline_logreg/coefficients.csv`, and the fitted model in `data/processed/models/logreg_has_crash.joblib`. The 2024 test file is not used.
+Outputs: `reports/baseline_logreg/validation_metrics.json`, `reports/baseline_logreg/coefficients.csv`, the 2023 predictions of every model in `data/processed/predictions/validation_2023_predictions.parquet`, and the fitted model in `data/processed/models/logreg_has_crash.joblib`. The 2024 test file is not used.
 
 ## Plot the validation results
 
-After running the logistic regression script, run:
+After running the logistic regression script (it reads the saved predictions), run:
 
 ```bash
 python scripts/9plot_logreg_results.py
