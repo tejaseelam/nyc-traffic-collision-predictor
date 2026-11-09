@@ -1,0 +1,4 @@
+experiment,model,group,average_precision,roc_auc,top5_capture,top5_scope,n_rows,n_positive,split,status,notes
+REPLACE_EXPERIMENT,baseline,REPLACE_GROUP,,,,REPLACE_SCOPE,,,2023_validation,pending,Replace or delete this example row
+REPLACE_EXPERIMENT,logistic,REPLACE_GROUP,,,,REPLACE_SCOPE,,,2023_validation,pending,Replace or delete this example row
+REPLACE_EXPERIMENT,lightgbm,REPLACE_GROUP,,,,REPLACE_SCOPE,,,2023_validation,pending,Replace or delete this example row
