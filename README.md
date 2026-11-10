@@ -45,3 +45,23 @@ The script keeps all grid cells from a six-hour period in the same split and val
 Use the training file to fit candidate models and the validation file to make every modeling decision. After selecting the final approach, retrain it with the combined training and validation data, then evaluate it once on the 2024 test file. Do not use the test file to choose features, models, settings, or a decision threshold.
 
 See `MODELING_HANDOFF.md` for the verified split totals, target columns, recommended modeling workflow, and known limitations.
+
+## Run the interactive dashboard
+
+The GitHub Pages site lives in `docs/`. It is a static, dependency-free dashboard that uses precomputed 2023 validation results and never loads the 2024 test split.
+
+After the baseline/logistic and tree modeling scripts have produced their validation prediction files, rebuild the public data package with:
+
+```bash
+python scripts/export_dashboard_data.py
+```
+
+On macOS, LightGBM also requires the OpenMP runtime (`brew install libomp`).
+
+Preview the site locally without an internet connection:
+
+```bash
+python -m http.server 8000 --directory docs
+```
+
+Then open `http://localhost:8000`. To publish with GitHub Pages, configure the repository to deploy from the `docs/` directory on the `main` branch. The exported data package is checked to stay below 15 MB, and all displayed model results are labeled as 2023 validation results.

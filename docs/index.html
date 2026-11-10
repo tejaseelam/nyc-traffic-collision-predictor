@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0b2430" />
+    <meta
+      name="description"
+      content="Explore observed NYC collisions and model-ranked collision risk across 500-meter grid cells."
+    />
+    <title>NYC Collision Risk Explorer</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="site-header">
+      <div class="brand-block">
+        <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+        <div>
+          <p class="eyebrow">Team 242 · CSE 6242</p>
+          <h1>NYC Collision Risk Explorer</h1>
+        </div>
+      </div>
+      <div class="header-actions">
+        <span class="data-stamp">Validation data · 2023</span>
+        <button class="button secondary" id="presentation-button" type="button" aria-pressed="false">
+          Presentation mode
+        </button>
+      </div>
+    </header>
+
+    <nav class="main-nav" aria-label="Primary navigation">
+      <button class="nav-link active" data-tab="explorer" type="button">Explorer</button>
+      <button class="nav-link" data-tab="performance" type="button">Model performance</button>
+      <button class="nav-link" data-tab="method" type="button">Method</button>
+      <button class="nav-link" data-tab="limitations" type="button">Limitations &amp; data</button>
+      <button class="nav-link" data-tab="about" type="button">About</button>
+    </nav>
+
+    <div id="status-banner" class="status-banner" role="status" hidden></div>
+
+    <main id="main-content">
+      <section class="tab-panel active" id="explorer-panel" data-panel="explorer">
+        <div class="story-strip" aria-label="Presentation stories">
+          <span>Story presets</span>
+          <button type="button" data-story="compare">1 · Evening comparison</button>
+          <button type="button" data-story="capture">2 · Top-5% capture</button>
+          <button type="button" data-story="cell">3 · Explain one cell</button>
+        </div>
+
+        <div class="explorer-shell">
+          <aside class="control-panel" aria-label="Map controls">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Explore the validation year</p>
+                <h2>Map controls</h2>
+              </div>
+              <button class="icon-button" id="reset-map" type="button" title="Reset map view">Reset</button>
+            </div>
+
+            <fieldset>
+              <legend>Map view</legend>
+              <div class="segmented" id="view-toggle">
+                <button type="button" class="active" data-value="predicted">Predicted</button>
+                <button type="button" data-value="observed">Observed</button>
+                <button type="button" data-value="difference">Difference</button>
+              </div>
+            </fieldset>
+
+            <label class="field-label" for="model-select">Model</label>
+            <select id="model-select">
+              <option value="tree">LightGBM + location</option>
+              <option value="logistic">Logistic regression</option>
+              <option value="baseline">Rolling cell + time rate</option>
+            </select>
+
+            <div class="field-grid">
+              <div>
+                <label class="field-label" for="hour-select">Six-hour period</label>
+                <select id="hour-select">
+                  <option value="0">12 AM–6 AM</option>
+                  <option value="6">6 AM–12 PM</option>
+                  <option value="12">12 PM–6 PM</option>
+                  <option value="18">6 PM–12 AM</option>
+                </select>
+              </div>
+              <div>
+                <label class="field-label" for="month-select">Month</label>
+                <select id="month-select">
+                  <option value="0">All months</option>
+                  <option value="1">January</option><option value="2">February</option>
+                  <option value="3">March</option><option value="4">April</option>
+                  <option value="5">May</option><option value="6">June</option>
+                  <option value="7">July</option><option value="8">August</option>
+                  <option value="9">September</option><option value="10">October</option>
+                  <option value="11">November</option><option value="12">December</option>
+                </select>
+              </div>
+            </div>
+
+            <label class="field-label" for="borough-select">Borough</label>
+            <select id="borough-select">
+              <option value="ALL">All boroughs</option>
+              <option value="BRONX">Bronx</option>
+              <option value="BROOKLYN">Brooklyn</option>
+              <option value="MANHATTAN">Manhattan</option>
+              <option value="QUEENS">Queens</option>
+              <option value="STATEN ISLAND">Staten Island</option>
+            </select>
+
+            <label class="field-label" for="weather-select">Weather</label>
+            <select id="weather-select">
+              <option value="all">All days</option>
+              <option value="wet">Wet days</option>
+              <option value="dry">Dry days</option>
+            </select>
+            <p class="field-note">Weather adds almost no ranking information in the current models.</p>
+
+            <div class="range-heading">
+              <label class="field-label" for="top-k">Highlight highest-risk cells</label>
+              <output id="top-k-output" for="top-k">Top 5%</output>
+            </div>
+            <input id="top-k" type="range" min="1" max="20" value="5" step="1" />
+            <div class="capture-card">
+              <span id="capture-value">—</span>
+              <p>of observed crashes fall inside the highlighted cells.</p>
+            </div>
+
+            <label class="switch-row">
+              <input id="compare-toggle" type="checkbox" />
+              <span>Side-by-side observed and predicted</span>
+            </label>
+          </aside>
+
+          <section class="map-stage" aria-label="Interactive NYC risk map">
+            <div class="map-title-row">
+              <div>
+                <div class="view-badge predicted" id="view-badge">Model estimate</div>
+                <h2 id="map-title">Predicted collision risk</h2>
+                <p id="map-subtitle">LightGBM + location · 2023 validation</p>
+              </div>
+              <div class="legend" id="map-legend" aria-label="Map color legend"></div>
+            </div>
+            <div class="map-grid" id="map-grid">
+              <div class="map-frame" data-map-role="primary">
+                <div class="map-frame-label" id="primary-map-label">Predicted</div>
+                <svg id="primary-map" role="img" aria-label="NYC 500-meter grid map"></svg>
+              </div>
+              <div class="map-frame compare-map" data-map-role="comparison" hidden>
+                <div class="map-frame-label">Observed</div>
+                <svg id="comparison-map" role="img" aria-label="Observed NYC collision map"></svg>
+              </div>
+            </div>
+            <div class="map-instruction">Scroll to zoom · drag to pan · select a cell for details</div>
+          </section>
+
+          <aside class="detail-panel" aria-live="polite">
+            <div class="empty-detail" id="empty-detail">
+              <div class="selection-icon" aria-hidden="true"></div>
+              <h2>Select a grid cell</h2>
+              <p>Choose any 500-meter cell to compare its current risk, observed crash rate, history, and local context.</p>
+            </div>
+            <div id="cell-detail" hidden>
+              <div class="detail-heading">
+                <div>
+                  <p class="eyebrow" id="detail-borough">Borough</p>
+                  <h2 id="detail-cell-id">Cell</h2>
+                </div>
+                <span class="percentile-pill" id="detail-percentile">—</span>
+              </div>
+              <div class="metric-pair">
+                <div><span>Predicted risk</span><strong id="detail-risk">—</strong></div>
+                <div><span>Observed rate</span><strong id="detail-observed">—</strong></div>
+              </div>
+              <section class="detail-section">
+                <div class="section-title-row"><h3>Monthly crash history</h3><span>2021–2023</span></div>
+                <svg id="history-sparkline" class="sparkline" role="img" aria-label="Monthly crash history"></svg>
+              </section>
+              <section class="detail-section">
+                <div class="section-title-row"><h3>Local context</h3><span>City average = 1.0</span></div>
+                <p class="context-note">These are contextual feature groups, not a causal explanation of this cell.</p>
+                <div id="context-bars" class="context-bars"></div>
+              </section>
+              <dl class="cell-facts" id="cell-facts"></dl>
+            </div>
+          </aside>
+        </div>
+        <p class="screening-note"><strong>Use as a screening tool:</strong> this map helps identify areas for investigation. It does not predict the exact site of every crash.</p>
+      </section>
+
+      <section class="tab-panel content-page" id="performance-panel" data-panel="performance" hidden>
+        <div class="page-intro">
+          <div><p class="eyebrow">Untouched validation year</p><h2>Model performance</h2></div>
+          <p>Every result below is from 2023. Model selection uses average precision because crash cell-periods are rare.</p>
+        </div>
+        <div id="metric-cards" class="metric-cards"></div>
+        <div class="card table-card"><div class="card-heading"><h3>Model comparison</h3><span>2023 validation</span></div><div class="table-wrap"><table id="model-table"></table></div></div>
+        <div class="chart-grid">
+          <article class="card chart-card"><div class="card-heading"><h3>Capture curve</h3><span>Share of crashes found</span></div><svg id="capture-chart" class="chart"></svg></article>
+          <article class="card chart-card"><div class="card-heading"><h3>Precision–recall</h3><span>Rare-event ranking</span></div><svg id="pr-chart" class="chart"></svg></article>
+          <article class="card chart-card"><div class="card-heading"><h3>Calibration</h3><span>Predicted vs. observed</span></div><svg id="calibration-chart" class="chart"></svg></article>
+          <article class="card chart-card"><div class="card-heading"><h3>Permutation importance</h3><span>Average-precision drop</span></div><div id="importance-chart" class="bar-chart"></div></article>
+        </div>
+        <div class="card subgroup-card">
+          <div class="card-heading"><div><h3>Subgroup checks</h3><p>Compare ranking performance across groups.</p></div><select id="subgroup-select"><option value="borough">Borough</option><option value="time">Time period</option><option value="season">Season</option><option value="weather">Wet / dry</option></select></div>
+          <div class="table-wrap"><table id="subgroup-table"></table></div>
+        </div>
+        <div class="experiment-grid">
+          <article class="pending-card"><span>Planned experiment</span><h3>Feature ablation</h3><p>Remove history, time, roads, weather, and location one group at a time.</p><strong>Pending</strong></article>
+          <article class="pending-card"><span>Planned experiment</span><h3>Reporting delay</h3><p>Recompute history with 0-, 3-, 7-, and 14-day publication lags.</p><strong>Pending</strong></article>
+          <article class="locked-card"><span>Locked evaluation</span><h3>Final 2024 test</h3><p>2024 remains untouched until every model choice and decision rule is fixed.</p><strong>Not yet opened</strong></article>
+        </div>
+      </section>
+
+      <section class="tab-panel content-page" id="method-panel" data-panel="method" hidden>
+        <div class="page-intro"><div><p class="eyebrow">From open data to ranked risk</p><h2>How the system works</h2></div><p>One reproducible pipeline builds a complete panel for every retained cell and six-hour period—including periods with no crash.</p></div>
+        <div class="pipeline" aria-label="Project pipeline">
+          <div><span>01</span><strong>Open data</strong><small>Crashes, weather, roads, speed limits</small></div><b>→</b>
+          <div><span>02</span><strong>Clean &amp; join</strong><small>Validate locations and preserve missingness</small></div><b>→</b>
+          <div><span>03</span><strong>500 m panel</strong><small>Four six-hour periods per day</small></div><b>→</b>
+          <div><span>04</span><strong>Past-only features</strong><small>History, time, roads, weather</small></div><b>→</b>
+          <div><span>05</span><strong>Rank &amp; evaluate</strong><small>Baselines, logistic regression, LightGBM</small></div>
+        </div>
+        <div class="split-card"><div><span>Train</span><strong>2021–2022</strong><small>Fit model parameters</small></div><div><span>Validate</span><strong>2023</strong><small>Select and compare models</small></div><div class="locked"><span>Final test</span><strong>2024</strong><small>Opened once, after choices are fixed</small></div></div>
+        <h3 class="section-heading">What is new in our approach</h3>
+        <div class="innovation-grid">
+          <article><span>01</span><h3>Complete panel</h3><p>Every retained cell and time period is included, even when no crash occurs.</p></article>
+          <article><span>02</span><h3>Past-only history</h3><p>Rolling features use only earlier periods, preventing information leakage.</p></article>
+          <article><span>03</span><h3>Honest integration</h3><p>Missingness and match quality are retained instead of inventing unsupported values.</p></article>
+          <article><span>04</span><h3>Decision-focused evaluation</h3><p>Risk ranking is tied to the share of crashes captured in the highest-risk mapped areas.</p></article>
+        </div>
+      </section>
+
+      <section class="tab-panel content-page" id="limitations-panel" data-panel="limitations" hidden>
+        <div class="page-intro"><div><p class="eyebrow">Interpret results carefully</p><h2>Limitations &amp; data</h2></div><p>The explorer communicates where the current model is useful—and where the evidence remains incomplete.</p></div>
+        <div class="limitation-grid">
+          <article><strong>35,679</strong><h3>Crashes without valid coordinates</h3><p>These records cannot be assigned to a 500-meter cell.</p></article>
+          <article><strong>73</strong><h3>Points outside retained land cells</h3><p>Valid points can fall in cells removed by the 1% land threshold.</p></article>
+          <article><strong>76.7%</strong><h3>Crash periods missed at top 5%</h3><p>The best current model captures 23.3% of crash cell-periods in the highest-risk 5%.</p></article>
+          <article><strong>1 station</strong><h3>Daily weather coverage</h3><p>Central Park weather is applied citywide and contributes almost no current ranking information.</p></article>
+        </div>
+        <div class="two-column-copy">
+          <article class="card"><h3>Additional cautions</h3><ul><li>Speed limits are a present-day snapshot, not a historical record for every year.</li><li>Exact road-hour traffic matched too few crashes, so traffic volume is deferred.</li><li>Published crash data may arrive after a delay; lag sensitivity is still planned.</li><li>Permutation importance describes global model behavior, not causes for one cell.</li></ul></article>
+          <article class="card"><h3>Data sources</h3><ul class="source-list"><li><a href="https://data.cityofnewyork.us/d/h9gi-nx95">NYPD Motor Vehicle Collisions</a></li><li><a href="https://www.nyc.gov/html/dot/html/about/datafeeds.shtml">NYC DOT Traffic Volume Counts</a></li><li><a href="https://www.ncei.noaa.gov/cdo-web/">NOAA Climate Data Online</a></li><li><a href="https://www.nyc.gov/content/visionzero/pages/open-data">NYC Vision Zero speed limits</a></li><li><a href="https://data.cityofnewyork.us/d/inkn-q76z">NYC Centerline</a></li><li><a href="https://data.cityofnewyork.us/d/2v4z-66xt">NYC borough boundaries</a></li></ul></article>
+        </div>
+      </section>
+
+      <section class="tab-panel content-page" id="about-panel" data-panel="about" hidden>
+        <div class="about-hero"><p class="eyebrow">Georgia Tech · CSE 6242</p><h2>Built to make model performance visible.</h2><p>Team 242 combines a reproducible data pipeline, rare-event prediction, and an interactive map so planners and researchers can inspect ranked collision risk without confusing a model estimate with a recorded crash.</p></div>
+        <div class="team-grid">
+          <article><span>AS</span><h3>Ashik Sathiya</h3><p>Speed-limit integration and reporting</p></article>
+          <article><span>TS</span><h3>Tejasree Seelam</h3><p>Crash collection, cleaning, and geography</p></article>
+          <article><span>YK</span><h3>Yashwant Kathirvel</h3><p>Tree-model development and evaluation</p></article>
+          <article><span>BP</span><h3>Blakely Pritchard</h3><p>Grid panel, chronological splits, and integration</p></article>
+          <article><span>MV</span><h3>Maria Camila Velez</h3><p>Baselines, logistic regression, and visual analysis</p></article>
+          <article><span>KC</span><h3>Karan Chahal</h3><p>Weather, traffic, and dataset integration</p></article>
+        </div>
+        <div class="about-links"><a class="button primary" href="https://github.com/tejaseelam/nyc-traffic-collision-predictor">View the GitHub repository</a><button class="button secondary" type="button" data-tab-jump="method">Read the method</button></div>
+      </section>
+    </main>
+
+    <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+    <script src="./app.js" defer></script>
+  </body>
+</html>

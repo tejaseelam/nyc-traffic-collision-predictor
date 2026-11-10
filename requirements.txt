@@ -4,4 +4,6 @@ pandas>=2.2
 pyarrow>=15
 pyproj>=3.6
 requests>=2.31
+scikit-learn>=1.6
+lightgbm>=4.6
 shapely>=2.0
