@@ -106,3 +106,23 @@ LightGBM was compared with scikit-learn's `HistGradientBoostingClassifier` and X
 | XGBoost | `core_plus_location` | 0.0607 | 0.233 | 25s |
 
 All three are within 0.0002 average precision, so the choice of library does not change accuracy. LightGBM was the fastest to fit.
+
+## Run the interactive dashboard
+
+The GitHub Pages site lives in `docs/`. It is a static, dependency-free dashboard that uses precomputed 2023 validation results and never loads the 2024 test split.
+
+After the baseline/logistic and tree modeling scripts have produced their validation prediction files, rebuild the public data package with:
+
+```bash
+python scripts/export_dashboard_data.py
+```
+
+On macOS, LightGBM also requires the OpenMP runtime (`brew install libomp`).
+
+Preview the site locally without an internet connection:
+
+```bash
+python -m http.server 8000 --directory docs
+```
+
+Then open `http://localhost:8000`. To publish with GitHub Pages, configure the repository to deploy from the `docs/` directory on the `main` branch. The exported data package is checked to stay below 15 MB, and all displayed model results are labeled as 2023 validation results.
