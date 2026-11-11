@@ -107,6 +107,18 @@ LightGBM was compared with scikit-learn's `HistGradientBoostingClassifier` and X
 
 All three are within 0.0002 average precision, so the choice of library does not change accuracy. LightGBM was the fastest to fit.
 
+## Compare the models on 2023
+
+After running `scripts/8baseline_logreg.py` and `scripts/10tree_model.py`, run:
+
+```bash
+python scripts/12compare_models.py
+```
+
+This reads both 2023 prediction files, checks that every model was scored on the same cell-periods with the same outcome, and measures the rolling cell + time-of-day baseline, the logistic regression, and LightGBM with one set of definitions: average precision, ROC AUC, top-5% capture, and calibration (Brier score, log loss, mean predicted vs observed rate, calibration intercept and slope). It also resamples 2023 by whole days (`--bootstrap-repeats`, default 1000) to give a 95% interval for each model's gain over the baseline.
+
+Outputs go to `reports/model_comparison/`, which is not committed: `maria_model_comparison.csv` in the shared format of `reports/evaluation/evaluation_results_template.csv`, the full metrics and intervals, and three figures. The 2024 test file is not used.
+
 ## Run the interactive dashboard
 
 The GitHub Pages site lives in `docs/`. It is a static, dependency-free dashboard that uses precomputed 2023 validation results and never loads the 2024 test split.

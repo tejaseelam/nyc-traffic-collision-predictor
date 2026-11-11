@@ -228,3 +228,6 @@ __pycache__/
 output/
 team*proposal.pdf
 ~$*.docx
+
+# Model comparison outputs are sent to Blakely, not committed (see reports/evaluation/README.md)
+reports/model_comparison/
