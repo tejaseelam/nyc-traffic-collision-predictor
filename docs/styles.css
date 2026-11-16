@@ -143,6 +143,15 @@ input[type="range"] { width: 100%; accent-color: var(--orange); }
 .metric-card span { color: var(--muted); font-size: .72rem; font-weight: 700; }
 .metric-card strong { display: block; margin: 6px 0 2px; font-family: Georgia, serif; font-size: 1.8rem; }
 .metric-card small { color: var(--teal); font-weight: 750; }
+.results-summary { margin-bottom: 16px; padding: 22px; display: grid; grid-template-columns: minmax(250px, .8fr) minmax(520px, 1.6fr); gap: 24px; align-items: center; border-radius: var(--radius); color: white; background: var(--navy); box-shadow: var(--shadow); }
+.results-summary-copy h3 { margin: 4px 0 10px; font-family: Georgia, serif; font-size: 1.35rem; line-height: 1.2; }
+.results-summary-copy > p:last-child { margin: 0; color: #c8dadd; font-size: .82rem; line-height: 1.55; }
+.results-summary .eyebrow { color: #83d2c8; }
+.finding-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
+.finding-card { min-height: 105px; padding: 14px; border: 1px solid rgb(255 255 255 / 15%); border-radius: 10px; background: rgb(255 255 255 / 7%); }
+.finding-card span { display: block; color: #b7d0d5; font-size: .68rem; font-weight: 750; }
+.finding-card strong { display: block; margin: 5px 0 3px; color: #f5b26b; font-family: Georgia, serif; font-size: 1.4rem; }
+.finding-card small { color: #e2ecee; font-size: .68rem; line-height: 1.35; }
 .card { padding: 20px; }
 .card-heading { margin-bottom: 16px; align-items: flex-start; }
 .card-heading h3, .card h3 { margin: 0; font-family: Georgia, serif; }
@@ -219,6 +228,7 @@ body.presentation .map-title-row h2 { font-size: 2.2rem; }
   #cell-detail { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
   #cell-detail .detail-heading, #cell-detail .metric-pair, #cell-detail .cell-facts { grid-column: 1 / -1; }
   .metric-cards { grid-template-columns: repeat(2, 1fr); }
+  .results-summary { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 780px) {
@@ -247,6 +257,7 @@ body.presentation .map-title-row h2 { font-size: 2.2rem; }
   .map-title-row { align-items: flex-start; }
   .legend { min-width: 130px; }
   .metric-cards, .experiment-grid, .innovation-grid, .limitation-grid, .team-grid { grid-template-columns: 1fr; }
+  .finding-grid { grid-template-columns: 1fr; }
   #cell-detail { display: block; }
   .content-page { padding-inline: 14px; }
 }

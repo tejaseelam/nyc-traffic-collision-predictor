@@ -194,6 +194,14 @@
           <p>Every result below is from 2023. Model selection uses average precision because crash cell-periods are rare.</p>
         </div>
         <div id="metric-cards" class="metric-cards"></div>
+        <section class="results-summary" aria-labelledby="results-summary-title">
+          <div class="results-summary-copy">
+            <p class="eyebrow">What the comparison tells us</p>
+            <h3 id="results-summary-title">LightGBM leads, but the simpler history baseline remains hard to beat.</h3>
+            <p>Logistic regression is nearly tied with the rolling baseline. LightGBM adds a small, consistent improvement by combining history, time, road, and location information. Past crash history is the strongest feature group; weather adds almost no ranking information.</p>
+          </div>
+          <div id="comparison-findings" class="finding-grid"></div>
+        </section>
         <div class="card table-card"><div class="card-heading"><h3>Model comparison</h3><span>2023 validation</span></div><div class="table-wrap"><table id="model-table"></table></div></div>
         <div class="chart-grid">
           <article class="card chart-card"><div class="card-heading"><h3>Capture curve</h3><span>Share of crashes found</span></div><svg id="capture-chart" class="chart"></svg></article>

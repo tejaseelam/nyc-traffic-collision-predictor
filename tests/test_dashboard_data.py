@@ -35,12 +35,26 @@ class DashboardDataTests(unittest.TestCase):
 
     def test_tree_metrics_match_the_validation_report(self):
         models = {row["id"]: row for row in self.metrics["models"]}
+        self.assertEqual(self.metrics["validation"]["positive_rows"], 86_524)
         self.assertAlmostEqual(models["tree"]["average_precision"], 0.06079, places=4)
         self.assertAlmostEqual(models["tree"]["top5_capture"], 0.23273, places=4)
         self.assertGreater(
             models["tree"]["average_precision"],
             models["logistic"]["average_precision"],
         )
+        self.assertGreater(
+            models["tree"]["average_precision"],
+            models["baseline"]["average_precision"],
+        )
+
+    def test_model_findings_are_supported_by_the_public_results(self):
+        models = {row["id"]: row for row in self.metrics["models"]}
+        ap_gain = models["tree"]["average_precision"] - models["baseline"]["average_precision"]
+        capture_gain = models["tree"]["top5_capture"] - models["baseline"]["top5_capture"]
+        self.assertAlmostEqual(ap_gain, 0.00222, places=4)
+        self.assertAlmostEqual(capture_gain, 0.00609, places=4)
+        self.assertEqual(self.metrics["importance"][0]["name"], "Crash history")
+        self.assertLess(self.metrics["importance"][-1]["drop"], 0)
 
     def test_public_payload_stays_under_fifteen_megabytes(self):
         total = sum(path.stat().st_size for path in DATA.iterdir() if path.is_file())

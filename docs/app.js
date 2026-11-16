@@ -411,12 +411,27 @@ function runStory(story) {
 function renderMetrics() {
   const metrics = appData.metrics;
   const best = metrics.models.reduce((left, right) => right.average_precision > left.average_precision ? right : left);
+  const baseline = metrics.models.find((model) => model.id === "baseline");
+  const logistic = metrics.models.find((model) => model.id === "logistic");
+  const tree = metrics.models.find((model) => model.id === "tree");
+  const treeCalibration = metrics.curves.calibration.tree;
+  const meanTreePrediction = treeCalibration.reduce((sum, point) => sum + point[0], 0) / treeCalibration.length;
   document.querySelector("#metric-cards").innerHTML = [
     ["Best average precision", best.average_precision.toFixed(4), best.name],
     ["Top-5% capture", formatPercent(best.top5_capture), best.name],
     ["Validation positives", formatPercent(metrics.validation.positive_rate, 2), `${formatNumber(metrics.validation.positive_rows)} crash cell-periods`],
     ["Grid × time panel", formatNumber(metrics.validation.rows), "3,640 cells · six-hour periods"],
   ].map(([label, value, note]) => `<article class="metric-card"><span>${label}</span><strong>${value}</strong><small>${note}</small></article>`).join("");
+
+  document.querySelector("#comparison-findings").innerHTML = [
+    ["Average-precision gain", `+${(tree.average_precision - baseline.average_precision).toFixed(4)}`, "LightGBM compared with the rolling baseline"],
+    ["Top-5% capture gain", `+${((tree.top5_capture - baseline.top5_capture) * 100).toFixed(1)} points`, "A real improvement, but still modest"],
+    ["Day-block bootstrap", "1,000 / 1,000", "Resampled comparisons favored LightGBM"],
+    ["Calibration check", `${formatPercent(meanTreePrediction, 2)} vs. ${formatPercent(metrics.validation.positive_rate, 2)}`, "Mean predicted risk vs. observed 2023 rate"],
+  ].map(([label, value, note]) => `<article class="finding-card"><span>${label}</span><strong>${value}</strong><small>${note}</small></article>`).join("");
+
+  const logisticDifference = logistic.average_precision - baseline.average_precision;
+  document.querySelector("#results-summary-title").title = `Logistic regression improves average precision by only ${logisticDifference.toFixed(4)} over the rolling baseline.`;
 
   document.querySelector("#model-table").innerHTML = `<thead><tr><th>Model</th><th>Average precision</th><th>ROC AUC</th><th>Top-5% capture</th><th>Brier score</th></tr></thead><tbody>${metrics.models.map((model) => `<tr class="${model.id === best.id ? "best" : ""}"><td>${model.name}</td><td>${model.average_precision.toFixed(4)}</td><td>${model.roc_auc.toFixed(3)}</td><td>${formatPercent(model.top5_capture)}</td><td>${model.brier_score.toFixed(4)}</td></tr>`).join("")}</tbody>`;
   drawLineChart("capture-chart", metrics.curves.capture, { xLabel: "Highest-risk share of cells", yLabel: "Share of crashes captured", diagonal: true });
