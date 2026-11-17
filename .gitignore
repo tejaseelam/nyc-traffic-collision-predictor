@@ -231,3 +231,4 @@ team*proposal.pdf
 
 # Model comparison outputs are sent to Blakely, not committed (see reports/evaluation/README.md)
 reports/model_comparison/
+reports/reporting_delay/

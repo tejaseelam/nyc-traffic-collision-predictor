@@ -119,6 +119,18 @@ This reads both 2023 prediction files, checks that every model was scored on the
 
 Outputs go to `reports/model_comparison/`, which is not committed: `maria_model_comparison.csv` in the shared format of `reports/evaluation/evaluation_results_template.csv`, the full metrics and intervals, and three figures. The 2024 test file is not used.
 
+## Measure the effect of late crash reports
+
+After building the model panel and its splits, run:
+
+```bash
+python scripts/13reporting_delay.py
+```
+
+This rebuilds the crash-history features as if crash reports arrived 0, 3, 7, or 14 days late (`--delays`), so the features for a six-hour period use only outcomes at least that many days old. For each delay it scores the rolling cell + time-of-day baseline, the logistic regression, and LightGBM with location on the 2023 validation file. The two fitted models are refit on 2021-2022 with the same delay; the models fitted without a delay are also scored on the delayed features, to show what ignoring the delay costs. Each change from the 0-day delay gets a 95% interval from the same whole-day resampling as the model comparison (`--bootstrap-repeats`, default 1000).
+
+Outputs go to `reports/reporting_delay/`, which is not committed: `yashwant_reporting_delay.csv` in the shared format of `reports/evaluation/evaluation_results_template.csv`, `reporting_delay_details.csv` with the intervals and the unrefit results, and one figure. The 2024 test file is not used.
+
 ## Run the interactive dashboard
 
 The GitHub Pages site lives in `docs/`. It is a static, dependency-free dashboard that uses precomputed 2023 validation results and never loads the 2024 test split.
