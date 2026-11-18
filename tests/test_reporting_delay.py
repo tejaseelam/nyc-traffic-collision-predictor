@@ -88,6 +88,31 @@ class DelayedHistoryTests(unittest.TestCase):
             DELAY.delay_history([train, validation.loc[gap]], 3)
 
 
+class FittingRowsTests(unittest.TestCase):
+    def setUp(self):
+        self.train = TREE_TESTS.prepare(TREE_TESTS.make_panel("2022-07-01", "2023-01-01"), "train")
+
+    def rows(self, delay_days):
+        return DELAY.fitting_rows(
+            self.train, delay_days, negative_rate=0.5, burn_in_days=28,
+            minimum_history_days=14, seed=0,
+        )
+
+    def test_short_delays_fit_on_the_same_rows_as_no_delay(self):
+        start = self.train["time_bin"].min()
+        for original, delayed in zip(self.rows(0), self.rows(14)):
+            pd.testing.assert_frame_equal(original, delayed)
+            self.assertGreaterEqual(original["time_bin"].min(), start + pd.Timedelta(days=28))
+
+    def test_long_delays_drop_only_the_rows_left_without_history(self):
+        first_fitted = self.train["time_bin"].min() + pd.Timedelta(days=60 + 14)
+        for original, delayed in zip(self.rows(0), self.rows(60)):
+            self.assertLess(len(delayed), len(original))
+            pd.testing.assert_frame_equal(
+                original.loc[original["time_bin"] >= first_fitted], delayed
+            )
+
+
 class ExperimentTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

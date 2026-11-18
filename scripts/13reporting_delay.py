@@ -19,6 +19,10 @@ the same burn-in, sampled training rows, settings, and measurements, so the
 0-day rows reproduce those scripts' results. Each change from the 0-day delay
 gets a 95% interval from the day-block bootstrap of scripts/12compare_models.py.
 
+Longer delays can be passed with --delays. A delay longer than 14 days would
+leave the first fitted rows with almost no visible crash history, so those rows
+are dropped: every fitted row keeps at least 14 days of history.
+
 Only 2023 rows are scored. The training file supplies the rows the models are
 fitted on and the crash history before 2023. The 2024 test file is never opened.
 """
@@ -57,6 +61,9 @@ PLOTS = COMPARE.PLOTS
 TARGET = LOGREG.TARGET
 VALIDATION_YEAR = COMPARE.VALIDATION_YEAR
 DELAYS_DAYS = (0, 3, 7, 14)
+# The least crash history a fitted row may have left once the delay hides the
+# newest reports. It is what the 14-day delay leaves after the 28-day burn-in.
+MINIMUM_HISTORY_DAYS = 14
 HISTORY_COLUMNS = TREE.FEATURE_GROUPS["Crash history"]
 BASELINE_COLUMN = "history_cell_hour_logit"
 TREE_FEATURES = TREE.FEATURE_SETS["core_plus_location"]
@@ -118,18 +125,39 @@ def delay_history(frames, delay_days):
     return results
 
 
-def fit_scorers(train, levels, logistic_c, negative_rate, burn_in_days, seed):
+def fitting_rows(train, delay_days, negative_rate, burn_in_days, minimum_history_days, seed):
+    """The sampled training rows of scripts 8 and 10, without rows the delay leaves blind.
+
+    Returns the rows for the logistic regression, and the same rows split into
+    LightGBM's fitting and early-stopping parts. Every delay starts from the
+    same sample and the same split. A row is then dropped when the delay hides
+    all but its first `minimum_history_days` of crash history, so a long delay
+    is not fitted on rows whose history features are still empty. With the
+    default 28-day burn-in this changes nothing for delays up to 14 days.
+    """
+    _, sampled = TREE.sampled_training_rows(train, negative_rate, burn_in_days, seed)
+    fit_frame, stop_frame = TREE.early_stopping_split(sampled, seed)
+    first_fitted = train["time_bin"].min() + pd.Timedelta(days=delay_days + minimum_history_days)
+    return [
+        frame.loc[frame["time_bin"] >= first_fitted] for frame in (sampled, fit_frame, stop_frame)
+    ]
+
+
+def fit_scorers(
+    train, levels, delay_days, logistic_c, negative_rate, burn_in_days, minimum_history_days, seed
+):
     """Fit the logistic regression and LightGBM as scripts 8 and 10 do.
 
     Returns a function per model that turns a frame into crash probabilities.
-    The burn-in is not extended by the delay, so every delay fits on the same rows.
     """
-    _, sampled = TREE.sampled_training_rows(train, negative_rate, burn_in_days, seed)
+    sampled, fit_frame, stop_frame = fitting_rows(
+        train, delay_days, negative_rate, burn_in_days, minimum_history_days, seed
+    )
+    print(f"  fitting on {len(sampled):,} sampled rows from {sampled['time_bin'].min():%Y-%m-%d}")
 
     logistic = LOGREG.build_model(logistic_c)
     logistic.fit(sampled[LOGREG.FEATURES], sampled[TARGET].to_numpy())
 
-    fit_frame, stop_frame = TREE.early_stopping_split(sampled, seed)
     tree = TREE.build_model(TREE_SETTINGS, seed)
     TREE.fit_model(
         tree,
@@ -156,6 +184,7 @@ def score_delays(
     logistic_c=0.1,
     negative_rate=0.1,
     burn_in_days=28,
+    minimum_history_days=MINIMUM_HISTORY_DAYS,
     prior_strength=20.0,
     recent_window_days=28,
     seed=42,
@@ -182,7 +211,10 @@ def score_delays(
     for delay in delays:
         print(f"Fitting and scoring with a {delay}-day delay...")
         delayed_train, delayed_validation = delay_history([train, validation], delay)
-        scorers = fit_scorers(delayed_train, levels, logistic_c, negative_rate, burn_in_days, seed)
+        scorers = fit_scorers(
+            delayed_train, levels, delay, logistic_c, negative_rate, burn_in_days,
+            minimum_history_days, seed,
+        )
         for model, score in scorers.items():
             scores[(model, delay, "refit")] = score(delayed_validation)
         if delay == 0:
@@ -259,7 +291,7 @@ def measure(y_true, days, scores, repeats, seed):
     return details.drop(columns="model_order").reset_index(drop=True)
 
 
-def shared_csv_rows(details, repeats):
+def shared_csv_rows(details, repeats, burn_in_days=28, minimum_history_days=MINIMUM_HISTORY_DAYS):
     """Refit rows in the format of reports/evaluation/evaluation_results_template.csv."""
     labels = {name: label for name, label, _ in MODELS}
     frozen = details[details["fit"] == "frozen"].set_index(["model", "delay_days"])
@@ -274,6 +306,12 @@ def shared_csv_rows(details, repeats):
                 notes.append("no fitted model")
             else:
                 notes.append("refit on 2021-22 with the same delay")
+                first_fitted = row.delay_days + minimum_history_days
+                if first_fitted > burn_in_days:
+                    notes.append(
+                        f"fitted rows start {first_fitted} days into 2021 instead of {burn_in_days} "
+                        f"so each keeps at least {minimum_history_days} days of visible history"
+                    )
             notes.append(
                 f"AP change vs 0-day delay {row.average_precision_change:+.5f} "
                 f"(95% CI {row.average_precision_change_low_95:+.5f} to "
@@ -297,10 +335,6 @@ def shared_csv_rows(details, repeats):
             "notes": "; ".join(notes),
         })
     return pd.DataFrame(rows)
-
-
-def delay_label(delay):
-    return "No delay" if delay == 0 else f"{delay} days"
 
 
 def plot_delays(details, path):
@@ -334,11 +368,11 @@ def plot_delays(details, path):
         largest_loss = max(largest_loss, -percent[""].min())
 
     levels.set_xticks(delays)
-    levels.set_xticklabels([delay_label(delay) for delay in delays])
-    levels.set_xlim(-0.8, delays[-1] + 2.6)
+    # Room on the right for the value labels at the longest delay.
+    levels.set_xlim(-0.06 * delays[-1], 1.19 * delays[-1])
     changes.axhline(0, color=PLOTS.INK_MUTED, linewidth=1)
     changes.set_xticks(range(len(later)))
-    changes.set_xticklabels([delay_label(delay) for delay in later])
+    changes.set_xticklabels(later)
     changes.set_xlim(-0.5, len(later) - 0.5)
     changes.yaxis.set_major_formatter(
         lambda value, _: "0%" if abs(value) < 1e-9 else f"{value:+.1f}%".replace("-", "−")
@@ -349,7 +383,7 @@ def plot_delays(details, path):
         (levels, "Average precision", "Vertical axis does not start at zero"),
         (changes, "Relative change from no delay", "Bar: 95% interval from resampling whole days"),
     ]:
-        axes.set_xlabel("Reporting delay")
+        axes.set_xlabel("Reporting delay (days)")
         PLOTS.style_axes(axes, title, subtitle)
         axes.set_title(title, loc="left", color=PLOTS.INK, fontsize=10.5, fontweight="bold", pad=22)
         axes.grid(axis="x", visible=False)
@@ -392,6 +426,7 @@ def main():
     parser.add_argument("--logistic-c", type=float, default=0.1)
     parser.add_argument("--negative-sample-rate", type=float, default=0.1)
     parser.add_argument("--burn-in-days", type=int, default=28)
+    parser.add_argument("--minimum-history-days", type=int, default=MINIMUM_HISTORY_DAYS)
     parser.add_argument("--prior-strength", type=float, default=20.0)
     parser.add_argument("--recent-window-days", type=int, default=28)
     parser.add_argument("--bootstrap-repeats", type=int, default=1000)
@@ -423,6 +458,7 @@ def main():
             logistic_c=args.logistic_c,
             negative_rate=args.negative_sample_rate,
             burn_in_days=args.burn_in_days,
+            minimum_history_days=args.minimum_history_days,
             prior_strength=args.prior_strength,
             recent_window_days=args.recent_window_days,
             seed=args.seed,
@@ -430,7 +466,9 @@ def main():
         del train, validation
         details = measure(y_true, days, scores, args.bootstrap_repeats, args.seed)
         details.to_csv(output / DETAILS_CSV, index=False)
-        shared_csv_rows(details, args.bootstrap_repeats).to_csv(output / SHARED_CSV, index=False)
+        shared_csv_rows(
+            details, args.bootstrap_repeats, args.burn_in_days, args.minimum_history_days
+        ).to_csv(output / SHARED_CSV, index=False)
 
     plot_delays(details, output / "figures" / FIGURE)
     print_summary(details)

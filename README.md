@@ -129,6 +129,8 @@ python scripts/13reporting_delay.py
 
 This rebuilds the crash-history features as if crash reports arrived 0, 3, 7, or 14 days late (`--delays`), so the features for a six-hour period use only outcomes at least that many days old. For each delay it scores the rolling cell + time-of-day baseline, the logistic regression, and LightGBM with location on the 2023 validation file. The two fitted models are refit on 2021-2022 with the same delay; the models fitted without a delay are also scored on the delayed features, to show what ignoring the delay costs. Each change from the 0-day delay gets a 95% interval from the same whole-day resampling as the model comparison (`--bootstrap-repeats`, default 1000).
 
+Longer delays can be passed, for example `--delays 0,3,7,14,30,60,90`. A delay longer than 14 days would leave the first fitted rows with almost no visible crash history, so the refit models skip those rows: every fitted row keeps at least 14 days of history (`--minimum-history-days`).
+
 Outputs go to `reports/reporting_delay/`, which is not committed: `yashwant_reporting_delay.csv` in the shared format of `reports/evaluation/evaluation_results_template.csv`, `reporting_delay_details.csv` with the intervals and the unrefit results, and one figure. The 2024 test file is not used.
 
 ## Run the interactive dashboard
