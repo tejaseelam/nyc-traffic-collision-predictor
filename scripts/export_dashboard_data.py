@@ -24,12 +24,12 @@ HOURS = [0, 6, 12, 18]
 MODELS = {
     "baseline": "cell_hour_rate_rolling",
     "logistic": "logistic",
-    "tree": "tree_core_plus_location",
+    "tree": "no_weather",
 }
 MODEL_NAMES = {
     "baseline": "Rolling cell + time rate",
     "logistic": "Logistic regression",
-    "tree": "LightGBM + location",
+    "tree": "Final LightGBM (no weather)",
 }
 
 
@@ -112,14 +112,14 @@ def load_validation(processed: Path) -> pd.DataFrame:
         columns=["cell_id", "time_bin", "cell_hour_rate_rolling", "logistic"],
     )
     tree = pd.read_parquet(
-        processed / "predictions" / "validation_2023_tree_predictions.parquet",
-        columns=["cell_id", "time_bin", "tree_core_plus_location"],
+        processed / "predictions" / "validation_2023_final_candidates.parquet",
+        columns=["cell_id", "time_bin", "no_weather"],
     )
     aligned(validation, baseline, "Baseline/logistic")
     aligned(validation, tree, "Tree")
     validation["baseline"] = baseline["cell_hour_rate_rolling"].to_numpy(dtype=np.float32)
     validation["logistic"] = baseline["logistic"].to_numpy(dtype=np.float32)
-    validation["tree"] = tree["tree_core_plus_location"].to_numpy(dtype=np.float32)
+    validation["tree"] = tree["no_weather"].to_numpy(dtype=np.float32)
     return validation
 
 
@@ -399,6 +399,9 @@ def main() -> None:
     compact_dump(build_metrics(root, validation), output / "metrics.json")
     print("Computing subgroup checks...")
     compact_dump(build_subgroups(validation), output / "subgroup_metrics.json")
+    final_metrics = root / "reports" / "final_evaluation" / "final_test_metrics.json"
+    if final_metrics.is_file():
+        compact_dump(json.loads(final_metrics.read_text()), output / "final_test_metrics.json")
 
     print("\nDashboard files:")
     total = 0

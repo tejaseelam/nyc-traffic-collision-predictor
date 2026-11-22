@@ -6,10 +6,12 @@ they can be combined without manual reformatting.
 
 ## What is stored in Git
 
-This folder contains only:
+This folder contains:
 
-- these shared instructions; and
-- `evaluation_results_template.csv`, which everyone should copy before starting.
+- these shared instructions;
+- `evaluation_results_template.csv`, which everyone should copy before starting;
+- `evaluation_results.csv`, the checked official 2023 result table; and
+- `evaluation_results_manifest.json`, which records validation checks and source hashes.
 
 Do **not** upload individual experiment result CSVs or unfinished charts to Git.
 Send those files directly to Blakely. After the files have been checked and

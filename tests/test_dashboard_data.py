@@ -14,6 +14,7 @@ class DashboardDataTests(unittest.TestCase):
         cls.summary = json.loads((DATA / "cell_period_summary.json").read_text())
         cls.detail = json.loads((DATA / "cell_detail.json").read_text())
         cls.metrics = json.loads((DATA / "metrics.json").read_text())
+        cls.final_metrics = json.loads((DATA / "final_test_metrics.json").read_text())
 
     def test_public_data_contains_the_complete_grid(self):
         self.assertEqual(len(self.grid["features"]), 3_640)
@@ -35,9 +36,9 @@ class DashboardDataTests(unittest.TestCase):
 
     def test_tree_metrics_match_the_validation_report(self):
         models = {row["id"]: row for row in self.metrics["models"]}
-        self.assertEqual(self.metrics["validation"]["positive_rows"], 86_524)
-        self.assertAlmostEqual(models["tree"]["average_precision"], 0.06079, places=4)
-        self.assertAlmostEqual(models["tree"]["top5_capture"], 0.23273, places=4)
+        self.assertEqual(self.metrics["validation"]["positive_rows"], 86_527)
+        self.assertAlmostEqual(models["tree"]["average_precision"], 0.06102, places=4)
+        self.assertAlmostEqual(models["tree"]["top5_capture"], 0.23372, places=4)
         self.assertGreater(
             models["tree"]["average_precision"],
             models["logistic"]["average_precision"],
@@ -51,10 +52,15 @@ class DashboardDataTests(unittest.TestCase):
         models = {row["id"]: row for row in self.metrics["models"]}
         ap_gain = models["tree"]["average_precision"] - models["baseline"]["average_precision"]
         capture_gain = models["tree"]["top5_capture"] - models["baseline"]["top5_capture"]
-        self.assertAlmostEqual(ap_gain, 0.00222, places=4)
-        self.assertAlmostEqual(capture_gain, 0.00609, places=4)
+        self.assertAlmostEqual(ap_gain, 0.00245, places=4)
+        self.assertAlmostEqual(capture_gain, 0.00707, places=4)
         self.assertEqual(self.metrics["importance"][0]["name"], "Crash history")
         self.assertLess(self.metrics["importance"][-1]["drop"], 0)
+
+    def test_final_test_is_the_locked_2024_evaluation(self):
+        models = self.final_metrics["models"]
+        self.assertEqual(models["lightgbm"]["rows"], 5_328_960)
+        self.assertAlmostEqual(models["lightgbm"]["top_fraction"], 0.05)
 
     def test_public_payload_stays_under_fifteen_megabytes(self):
         total = sum(path.stat().st_size for path in DATA.iterdir() if path.is_file())

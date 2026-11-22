@@ -1,0 +1,13 @@
+{
+  "status": "complete_do_not_rerun",
+  "started_utc": "2026-11-22T21:46:19.119290+00:00",
+  "freeze_sha256": "cc195ea70115187bbc49aed0bffd282f6035dc8eb996419e13e8d43381cbd449",
+  "selected_model": "no_weather",
+  "warning": "This record is written before reading 2024. Do not rerun or tune after this point.",
+  "completed_utc": "2026-11-22T21:47:35.060970+00:00",
+  "test_sha256": "9197b1191f2f64092c441908d74ffc13a579ada47a2bd953a18e8e1545044c5f",
+  "test_rows": 5328960,
+  "test_positive_periods": 81413,
+  "top5_rule": "global highest-risk 5% of all 2024 cell-periods",
+  "metrics_file": "final_test_metrics.json"
+}

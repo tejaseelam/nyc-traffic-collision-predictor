@@ -1,0 +1,13 @@
+{
+  "canonical_validation_rows": 5314400,
+  "canonical_validation_positive_periods": 86527,
+  "row_count": 72,
+  "sources": {
+    "output/evaluation/feature_removal/blakely_feature_removal.csv": "18e797acdb3f4f1ed0b9752d03611d7a1971b1331ebfe1816d9d3165c445357e",
+    "yashwant_reporting_delay (1).csv": "86d9b3c146e0ff7514876303bfc3c5b5245e270dbf1b664e73c7fd8ff8f8d088",
+    "ashik_time_risk.csv": "fa1f37c18a9f4a44d898e92c2248f92483e07c00ec2ade6517b70ccc81e67263",
+    "reports/season_weather/season_weather.csv": "cb3f18353e2d82bfd818c111669b77f6fa4d56f0148b1da1451b6420e5a12948"
+  },
+  "model_comparison_source": "reports/tree_model/model_comparison.csv",
+  "validation": "All rows complete; metrics in [0,1]; global counts canonical; subgroup partitions sum to canonical counts; no duplicate keys; 2023 only."
+}

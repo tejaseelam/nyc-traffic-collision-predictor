@@ -4,6 +4,8 @@
 
 The cleaned and integrated data have been converted into a model panel with one row for every 500-meter NYC grid cell and six-hour period from 2021 through 2024. Periods without crashes are included.
 
+Model development is now complete. The no-weather LightGBM was frozen using 2023 validation and evaluated once on 2024. The test access lock prevents another run; see `MODEL_FREEZE.md` and `reports/final_evaluation/FINAL_TEST_LOCK.json`.
+
 Run these commands from the project root to rebuild the panel and its chronological splits:
 
 ```bash
@@ -39,14 +41,14 @@ Together, the files contain all 21,272,160 panel rows and all 366,617 assigned c
 - Available inputs include grid location, borough, calendar fields, daily weather, land coverage, and area-level speed-limit summaries.
 - Traffic is not included in version 1 because the exact-hour match coverage was too sparse.
 
-## Recommended workflow
+## Completed workflow
 
-1. Establish a historical-average baseline using only the training file.
-2. Fit candidate models with the training file.
-3. Use the validation file for every modeling decision.
-4. Select one final approach and decision threshold.
-5. Retrain that approach with the combined training and validation files.
-6. Evaluate it once on the 2024 test file and report those results.
+1. Established a rolling historical baseline using only past periods.
+2. Fit logistic regression and LightGBM candidates on 2021–2022.
+3. Used 2023 for all feature, setting, subgroup, and delay decisions.
+4. Selected no-weather LightGBM and froze the citywide top-5% rule.
+5. Retrained on combined 2021–2023 development data.
+6. Evaluated once on 2024: AP 0.0562, ROC AUC 0.8079, and top-5% capture 23.1%.
 
 Do not inspect test performance repeatedly or use the test file to select features, models, settings, or thresholds. Any historical-average or lag feature must be calculated only from data earlier than the period being predicted.
 

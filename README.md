@@ -133,9 +133,22 @@ Longer delays can be passed, for example `--delays 0,3,7,14,30,60,90`. A delay l
 
 Outputs go to `reports/reporting_delay/`, which is not committed: `yashwant_reporting_delay.csv` in the shared format of `reports/evaluation/evaluation_results_template.csv`, `reporting_delay_details.csv` with the intervals and the unrefit results, and one figure. The 2024 test file is not used.
 
+## Final model and evaluation
+
+The canonical 2023 validation panel contains 86,527 positive cell-periods. The final comparison found that LightGBM without weather was slightly better than the full model and statistically tied in a 1,000-sample whole-day bootstrap, so the simpler model was frozen. The exact features, settings, input hashes, and global top-5% rule are recorded in `MODEL_FREEZE.md` and `reports/final_model/model_freeze.json`.
+
+The one-time 2024 evaluation has been completed and locked. Do not rerun it or use it for further model choices. Final metrics and conclusions are in `reports/final_evaluation/`; the final LightGBM achieved 0.0562 average precision and captured 23.1% of positive cell-periods in the citywide highest-risk 5%.
+
+The reproducibility scripts are:
+
+- `scripts/14season_weather.py`: corrected season and precipitation/trace-day subgroup results.
+- `scripts/15select_final_model.py`: full-vs-no-weather comparison and pre-test freeze.
+- `scripts/16final_test.py`: guarded one-time 2024 evaluation; it now refuses to run again.
+- `scripts/17combine_evaluation_results.py`: validation and assembly of the official 2023 result table.
+
 ## Run the interactive dashboard
 
-The GitHub Pages site lives in `docs/`. It is a static, dependency-free dashboard that uses precomputed 2023 validation results and never loads the 2024 test split.
+The GitHub Pages site lives in `docs/`. It is a static, dependency-free dashboard that uses precomputed 2023 validation results for its explorer and displays the locked one-time 2024 test summary.
 
 After the baseline/logistic and tree modeling scripts have produced their validation prediction files, rebuild the public data package with:
 
@@ -151,4 +164,4 @@ Preview the site locally without an internet connection:
 python -m http.server 8000 --directory docs
 ```
 
-Then open `http://localhost:8000`. To publish with GitHub Pages, configure the repository to deploy from the `docs/` directory on the `main` branch. The exported data package is checked to stay below 15 MB, and all displayed model results are labeled as 2023 validation results.
+Then open `http://localhost:8000`. To publish with GitHub Pages, configure the repository to deploy from the `docs/` directory on the `main` branch. The exported data package is checked to stay below 15 MB. Explorer results are labeled as 2023 validation, while the separate final table is labeled as the one-time 2024 test.

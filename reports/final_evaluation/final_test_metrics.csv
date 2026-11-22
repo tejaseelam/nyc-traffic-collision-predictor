@@ -1,0 +1,4 @@
+experiment,model,group,average_precision,roc_auc,top5_capture,top5_scope,n_rows,n_positive,split,status,notes
+final_test,baseline,all_2024,0.05385388886834623,0.80292398486092,0.22287595347180425,global,5328960,81413,2024_test,complete,Rolling past-only cell and six-hour-slot rate
+final_test,logistic,all_2024,0.054206677253874694,0.8036615503235878,0.2235023890533453,global,5328960,81413,2024_test,complete,"Locked logistic comparison, C=0.1"
+final_test,lightgbm,all_2024,0.0561504271195301,0.8078565896917135,0.2310318990824561,global,5328960,81413,2024_test,complete,Locked no weather LightGBM

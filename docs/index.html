@@ -22,7 +22,7 @@
         </div>
       </div>
       <div class="header-actions">
-        <span class="data-stamp">Validation data · 2023</span>
+        <span class="data-stamp">2023 validation · final 2024 test</span>
         <button class="button secondary" id="presentation-button" type="button" aria-pressed="false">
           Presentation mode
         </button>
@@ -69,7 +69,7 @@
 
             <label class="field-label" for="model-select">Model</label>
             <select id="model-select">
-              <option value="tree">LightGBM + location</option>
+              <option value="tree">Final LightGBM (no weather)</option>
               <option value="logistic">Logistic regression</option>
               <option value="baseline">Rolling cell + time rate</option>
             </select>
@@ -111,8 +111,8 @@
             <label class="field-label" for="weather-select">Weather</label>
             <select id="weather-select">
               <option value="all">All days</option>
-              <option value="wet">Wet days</option>
-              <option value="dry">Dry days</option>
+              <option value="wet">Precipitation / trace days</option>
+              <option value="dry">No-precipitation days</option>
             </select>
             <p class="field-note">Weather adds almost no ranking information in the current models.</p>
 
@@ -137,7 +137,7 @@
               <div>
                 <div class="view-badge predicted" id="view-badge">Model estimate</div>
                 <h2 id="map-title">Predicted collision risk</h2>
-                <p id="map-subtitle">LightGBM + location · 2023 validation</p>
+                <p id="map-subtitle">Final LightGBM (no weather) · 2023 validation</p>
               </div>
               <div class="legend" id="map-legend" aria-label="Map color legend"></div>
             </div>
@@ -198,7 +198,7 @@
           <div class="results-summary-copy">
             <p class="eyebrow">What the comparison tells us</p>
             <h3 id="results-summary-title">LightGBM leads, but the simpler history baseline remains hard to beat.</h3>
-            <p>Logistic regression is nearly tied with the rolling baseline. LightGBM adds a small, consistent improvement by combining history, time, road, and location information. Past crash history is the strongest feature group; weather adds almost no ranking information.</p>
+            <p>Logistic regression is nearly tied with the rolling baseline. LightGBM adds a small improvement by combining history, time, road, and location information. Removing weather slightly improved validation average precision, so the simpler no-weather version was frozen for the final test.</p>
           </div>
           <div id="comparison-findings" class="finding-grid"></div>
         </section>
@@ -210,14 +210,15 @@
           <article class="card chart-card"><div class="card-heading"><h3>Permutation importance</h3><span>Average-precision drop</span></div><div id="importance-chart" class="bar-chart"></div></article>
         </div>
         <div class="card subgroup-card">
-          <div class="card-heading"><div><h3>Subgroup checks</h3><p>Compare ranking performance across groups.</p></div><select id="subgroup-select"><option value="borough">Borough</option><option value="time">Time period</option><option value="season">Season</option><option value="weather">Wet / dry</option></select></div>
+          <div class="card-heading"><div><h3>Subgroup checks</h3><p>Compare ranking performance across groups.</p></div><select id="subgroup-select"><option value="borough">Borough</option><option value="time">Time period</option><option value="season">Season</option><option value="weather">Precipitation / no precipitation</option></select></div>
           <div class="table-wrap"><table id="subgroup-table"></table></div>
         </div>
         <div class="experiment-grid">
-          <article class="pending-card"><span>Planned experiment</span><h3>Feature ablation</h3><p>Remove history, time, roads, weather, and location one group at a time.</p><strong>Pending</strong></article>
-          <article class="pending-card"><span>Planned experiment</span><h3>Reporting delay</h3><p>Recompute history with 0-, 3-, 7-, and 14-day publication lags.</p><strong>Pending</strong></article>
-          <article class="locked-card"><span>Locked evaluation</span><h3>Final 2024 test</h3><p>2024 remains untouched until every model choice and decision rule is fixed.</p><strong>Not yet opened</strong></article>
+          <article class="completed-card"><span>Completed experiment</span><h3>Feature removal</h3><p>Crash history and time mattered most. Weather did not improve validation ranking, so it was removed from the final model.</p><strong>No-weather selected</strong></article>
+          <article class="completed-card"><span>Completed experiment</span><h3>Reporting delay</h3><p>Performance declined gradually with 0–90 day lags, but model ranking did not change. At 90 days, LightGBM AP remained 0.0602.</p><strong>Small, measurable effect</strong></article>
+          <article class="completed-card"><span>Completed once</span><h3>Final 2024 test</h3><p>The model, features, settings, and global top-5% rule were frozen before the test was opened.</p><strong>Locked · do not rerun</strong></article>
         </div>
+        <div class="card table-card final-test-card"><div class="card-heading"><div><h3>Final 2024 test results</h3><p>One-time evaluation after every choice was frozen.</p></div><span>Untouched test year</span></div><div class="table-wrap"><table id="final-test-table"></table></div></div>
       </section>
 
       <section class="tab-panel content-page" id="method-panel" data-panel="method" hidden>
@@ -229,7 +230,7 @@
           <div><span>04</span><strong>Past-only features</strong><small>History, time, roads, weather</small></div><b>→</b>
           <div><span>05</span><strong>Rank &amp; evaluate</strong><small>Baselines, logistic regression, LightGBM</small></div>
         </div>
-        <div class="split-card"><div><span>Train</span><strong>2021–2022</strong><small>Fit model parameters</small></div><div><span>Validate</span><strong>2023</strong><small>Select and compare models</small></div><div class="locked"><span>Final test</span><strong>2024</strong><small>Opened once, after choices are fixed</small></div></div>
+        <div class="split-card"><div><span>Train</span><strong>2021–2022</strong><small>Fit model parameters</small></div><div><span>Validate</span><strong>2023</strong><small>Select and compare models</small></div><div class="locked"><span>Final test</span><strong>2024</strong><small>Opened once after choices were fixed</small></div></div>
         <h3 class="section-heading">What is new in our approach</h3>
         <div class="innovation-grid">
           <article><span>01</span><h3>Complete panel</h3><p>Every retained cell and time period is included, even when no crash occurs.</p></article>
@@ -244,11 +245,11 @@
         <div class="limitation-grid">
           <article><strong>35,679</strong><h3>Crashes without valid coordinates</h3><p>These records cannot be assigned to a 500-meter cell.</p></article>
           <article><strong>73</strong><h3>Points outside retained land cells</h3><p>Valid points can fall in cells removed by the 1% land threshold.</p></article>
-          <article><strong>76.7%</strong><h3>Crash periods missed at top 5%</h3><p>The best current model captures 23.3% of crash cell-periods in the highest-risk 5%.</p></article>
+          <article><strong>76.6%</strong><h3>Validation crash periods missed at top 5%</h3><p>The frozen no-weather model captures 23.4% of 2023 positive cell-periods in the highest-risk 5%.</p></article>
           <article><strong>1 station</strong><h3>Daily weather coverage</h3><p>Central Park weather is applied citywide and contributes almost no current ranking information.</p></article>
         </div>
         <div class="two-column-copy">
-          <article class="card"><h3>Additional cautions</h3><ul><li>Speed limits are a present-day snapshot, not a historical record for every year.</li><li>Exact road-hour traffic matched too few crashes, so traffic volume is deferred.</li><li>Published crash data may arrive after a delay; lag sensitivity is still planned.</li><li>Permutation importance describes global model behavior, not causes for one cell.</li></ul></article>
+          <article class="card"><h3>Additional cautions</h3><ul><li>Speed limits are a present-day snapshot, not a historical record for every year.</li><li>Exact road-hour traffic matched too few crashes, so traffic volume is deferred.</li><li>Late reporting has a small but measurable effect after roughly 30 days; its real deployment process still needs study.</li><li>Permutation importance describes global model behavior, not causes for one cell.</li></ul></article>
           <article class="card"><h3>Data sources</h3><ul class="source-list"><li><a href="https://data.cityofnewyork.us/d/h9gi-nx95">NYPD Motor Vehicle Collisions</a></li><li><a href="https://www.nyc.gov/html/dot/html/about/datafeeds.shtml">NYC DOT Traffic Volume Counts</a></li><li><a href="https://www.ncei.noaa.gov/cdo-web/">NOAA Climate Data Online</a></li><li><a href="https://www.nyc.gov/content/visionzero/pages/open-data">NYC Vision Zero speed limits</a></li><li><a href="https://data.cityofnewyork.us/d/inkn-q76z">NYC Centerline</a></li><li><a href="https://data.cityofnewyork.us/d/2v4z-66xt">NYC borough boundaries</a></li></ul></article>
         </div>
       </section>

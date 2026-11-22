@@ -6,12 +6,13 @@ const DATA_FILES = {
   detail: "./data/cell_detail.json",
   metrics: "./data/metrics.json",
   subgroups: "./data/subgroup_metrics.json",
+  finalTest: "./data/final_test_metrics.json",
 };
 
 const MODEL_INFO = {
   baseline: { name: "Rolling cell + time rate", key: "b", color: "#d66a2c" },
   logistic: { name: "Logistic regression", key: "l", color: "#14807e" },
-  tree: { name: "LightGBM + location", key: "t", color: "#6d5aa8" },
+  tree: { name: "Final LightGBM (no weather)", key: "t", color: "#6d5aa8" },
 };
 
 const RAMPS = {
@@ -440,6 +441,8 @@ function renderMetrics() {
   const maxDrop = Math.max(...metrics.importance.map((item) => Math.max(0, item.drop)));
   document.querySelector("#importance-chart").innerHTML = metrics.importance.map((item) => `<div class="importance-row"><span>${item.name}</span><div class="importance-track"><div class="importance-fill" style="width:${Math.max(0, item.drop) / maxDrop * 100}%"></div></div><strong>${item.drop.toFixed(3)}</strong></div>`).join("");
   renderSubgroups("borough");
+  const finalModels = appData.finalTest.models;
+  document.querySelector("#final-test-table").innerHTML = `<thead><tr><th>Model</th><th>Average precision</th><th>ROC AUC</th><th>Top-5% capture</th><th>Observed rate</th></tr></thead><tbody>${["baseline", "logistic", "lightgbm"].map((id) => { const model = finalModels[id]; return `<tr class="${id === "lightgbm" ? "best" : ""}"><td>${id === "lightgbm" ? MODEL_INFO.tree.name : MODEL_INFO[id].name}</td><td>${model.average_precision.toFixed(4)}</td><td>${model.roc_auc.toFixed(3)}</td><td>${formatPercent(model.recall_at_top_fraction)}</td><td>${formatPercent(model.positive_rate, 2)}</td></tr>`; }).join("")}</tbody>`;
 }
 
 function drawLineChart(id, series, options) {
@@ -469,8 +472,8 @@ function renderSubgroups(group) {
 async function init() {
   showStatus("Loading the 2023 validation explorer…");
   try {
-    const [grid, summary, detail, metrics, subgroups] = await Promise.all(Object.entries(DATA_FILES).map(([label, url]) => fetchJson(label, url)));
-    Object.assign(appData, { grid, summary, detail, metrics, subgroups });
+    const [grid, summary, detail, metrics, subgroups, finalTest] = await Promise.all(Object.entries(DATA_FILES).map(([label, url]) => fetchJson(label, url)));
+    Object.assign(appData, { grid, summary, detail, metrics, subgroups, finalTest });
     statusBanner.hidden = true;
     mapViews.push(new GridMap(document.querySelector("#primary-map"), "primary"));
     mapViews.push(new GridMap(document.querySelector("#comparison-map"), "comparison"));
