@@ -3,25 +3,19 @@
     "core": {
       "shallow": {
         "rows": 5314400,
-        "positive_rate": 0.016281047719403884,
-        "mean_predicted_probability": 0.0174145860767933,
-        "average_precision": 0.06061882360054252,
-        "roc_auc": 0.810668601461686,
-        "log_loss": 0.07221064779836643,
-        "brier_score": 0.015614452321785172,
+        "positive_rate": 0.016281612223393045,
+        "mean_predicted_probability": 0.017414676447539284,
+        "average_precision": 0.060622482154992226,
+        "roc_auc": 0.8106717709477499,
+        "log_loss": 0.07221229683067812,
+        "brier_score": 0.015614952708819005,
         "top_fraction": 0.05,
-        "precision_at_top_fraction": 0.07559461086858348,
-        "recall_at_top_fraction": 0.2321552401645786,
-        "confusion_at_top_fraction": {
-          "true_positives": 20087,
-          "false_positives": 245633,
-          "false_negatives": 66437,
-          "true_negatives": 4982243
-        },
-        "best_f1": 0.1142251174064536,
+        "precision_at_top_fraction": 0.07559837422851122,
+        "recall_at_top_fraction": 0.23215874813641985,
+        "best_f1": 0.11422961288367865,
         "best_f1_threshold": 0.06202630003958274,
-        "precision_at_best_f1": 0.07636097348166153,
-        "recall_at_best_f1": 0.22657297397253942,
+        "precision_at_best_f1": 0.07636457120153936,
+        "recall_at_best_f1": 0.22657667548857582,
         "settings": {
           "n_estimators": 1000,
           "reg_lambda": 1.0,
@@ -31,32 +25,26 @@
           "min_child_samples": 200
         },
         "iterations": 93,
-        "fit_seconds": 3.7,
-        "predict_seconds": 5.8
+        "fit_seconds": 1.5,
+        "predict_seconds": 1.8
       }
     },
     "core_plus_location": {
       "shallow": {
         "rows": 5314400,
-        "positive_rate": 0.016281047719403884,
-        "mean_predicted_probability": 0.017371121013417822,
-        "average_precision": 0.06078807684111521,
-        "roc_auc": 0.8108568517604136,
-        "log_loss": 0.07218789977596311,
-        "brier_score": 0.015613571398459598,
+        "positive_rate": 0.016281612223393045,
+        "mean_predicted_probability": 0.01737122646320375,
+        "average_precision": 0.060790938396148915,
+        "roc_auc": 0.8108599166065872,
+        "log_loss": 0.07218957001335764,
+        "brier_score": 0.015614076293832468,
         "top_fraction": 0.05,
         "precision_at_top_fraction": 0.07578277886497065,
-        "recall_at_top_fraction": 0.2327331145115806,
-        "confusion_at_top_fraction": {
-          "true_positives": 20137,
-          "false_positives": 245583,
-          "false_negatives": 66387,
-          "true_negatives": 4982293
-        },
-        "best_f1": 0.11465016014953551,
+        "recall_at_top_fraction": 0.23272504536156344,
+        "best_f1": 0.11465426822586453,
         "best_f1_threshold": 0.06426725644844598,
-        "precision_at_best_f1": 0.07862495437270521,
-        "recall_at_best_f1": 0.2116060283851879,
+        "precision_at_best_f1": 0.07862823573870176,
+        "recall_at_best_f1": 0.21161024882406648,
         "settings": {
           "n_estimators": 1000,
           "reg_lambda": 1.0,
@@ -66,8 +54,8 @@
           "min_child_samples": 200
         },
         "iterations": 180,
-        "fit_seconds": 6.4,
-        "predict_seconds": 10.9
+        "fit_seconds": 2.2,
+        "predict_seconds": 3.0
       }
     }
   },
@@ -150,9 +138,9 @@
     "importance_repeats": 3
   },
   "runtime": {
-    "total_seconds": 529.9,
-    "cpu_count": 8,
-    "platform": "macOS-26.6.2-arm64-arm-64bit",
+    "total_seconds": 190.2,
+    "cpu_count": 10,
+    "platform": "macOS-26.6-arm64-arm-64bit",
     "python": "3.9.6",
     "lightgbm": "4.6.0",
     "scikit_learn": "1.6.1"
